@@ -40,18 +40,6 @@ const NAV_SECTIONS: NavSection[] = [
 
 const NAV = NAV_SECTIONS.flatMap(s => s.items)
 
-const navHeadingStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.7px',
-  color: 'rgba(255,255,255,0.25)',
-  marginTop: 16,
-  marginBottom: 4,
-  paddingLeft: 11,
-  whiteSpace: 'nowrap',
-}
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -60,6 +48,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === 'undefined' || localStorage.getItem('sidebar_default_open') !== 'false'
   )
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    if (typeof window === 'undefined') return 'dark'
+    return (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark'
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('theme', next)
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -81,6 +83,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const activeId = NAV.find(n => pathname === n.href || (n.href !== '/app' && pathname.startsWith(n.href)))?.id ?? 'dashboard'
 
+  const navHeadingStyle: React.CSSProperties = {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.7px',
+    color: 'var(--text3)',
+    marginTop: 16,
+    marginBottom: 4,
+    paddingLeft: 11,
+    whiteSpace: 'nowrap',
+  }
+
   return (
     <div className="app">
       {/* Sidebar toggle button */}
@@ -97,7 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           border: 'none',
           borderRadius: 0,
           boxShadow: 'none',
-          color: '#fff',
+          color: 'var(--text)',
           fontSize: 28,
           cursor: 'pointer',
           lineHeight: 1,
@@ -105,7 +119,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           transition: 'left 0.25s ease, color 0.12s',
         }}
         onMouseEnter={e => (e.currentTarget.style.color = '#e02020')}
-        onMouseLeave={e => (e.currentTarget.style.color = '#fff')}
+        onMouseLeave={e => (e.currentTarget.style.color = 'var(--text)')}
       >
         {sidebarOpen ? '‹' : '›'}
       </button>
@@ -135,10 +149,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div style={{ padding: '10px 6px 0', fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', whiteSpace: 'nowrap' }}>
           <span>{user?.email?.split('@')[0]}</span>
-          <button className="btn btn-ghost btn-xs"
-            onClick={async () => { await supabase.auth.signOut(); router.replace('/login') }}>
-            Odhlásit
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={toggleTheme}
+              title={theme === 'dark' ? 'Přepnout na světlý režim' : 'Přepnout na tmavý režim'}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, color: 'var(--text3)' }}
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button className="btn btn-ghost btn-xs"
+              onClick={async () => { await supabase.auth.signOut(); router.replace('/login') }}>
+              Odhlásit
+            </button>
+          </div>
         </div>
       </nav>
       <main className="main">{children}</main>

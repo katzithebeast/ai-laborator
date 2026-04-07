@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [team, setTeam] = useState('')
   const [saved, setSaved] = useState(false)
   const [sidebarDefault, setSidebarDefault] = useState(false)
+  const [lightMode, setLightMode] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -18,12 +19,37 @@ export default function SettingsPage() {
     }
     load()
     setSidebarDefault(localStorage.getItem('sidebar_default_open') !== 'false')
+    setLightMode(localStorage.getItem('theme') === 'light')
   }, [])
 
   const toggleSidebar = (val: boolean) => {
     setSidebarDefault(val)
     localStorage.setItem('sidebar_default_open', String(val))
   }
+
+  const toggleLightMode = (val: boolean) => {
+    setLightMode(val)
+    const theme = val ? 'light' : 'dark'
+    localStorage.setItem('theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
+  }
+
+  const toggleSwitch = (active: boolean, onToggle: () => void) => (
+    <button
+      onClick={onToggle}
+      style={{
+        flexShrink: 0, width: 44, height: 24, borderRadius: 12, border: 'none',
+        cursor: 'pointer', position: 'relative', padding: 0, transition: 'background 0.2s',
+        background: active ? '#e02020' : 'var(--border2)',
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 3, left: active ? 23 : 3,
+        width: 18, height: 18, borderRadius: '50%', background: '#fff',
+        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+      }} />
+    </button>
+  )
 
   const save = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -62,30 +88,14 @@ export default function SettingsPage() {
                 <div style={{ fontSize:13, color:'var(--text)', marginBottom:2 }}>Boční panel otevřený po přihlášení</div>
                 <div style={{ fontSize:12, color:'var(--text3)' }}>Sidebar se otevře automaticky při každém načtení</div>
               </div>
-              <button
-                onClick={() => toggleSidebar(!sidebarDefault)}
-                style={{
-                  flexShrink: 0,
-                  width: 44, height: 24,
-                  borderRadius: 12,
-                  border: 'none',
-                  cursor: 'pointer',
-                  background: sidebarDefault ? '#e02020' : 'rgba(255,255,255,0.12)',
-                  position: 'relative',
-                  transition: 'background 0.2s',
-                  padding: 0,
-                }}
-              >
-                <span style={{
-                  position: 'absolute',
-                  top: 3, left: sidebarDefault ? 23 : 3,
-                  width: 18, height: 18,
-                  borderRadius: '50%',
-                  background: '#fff',
-                  transition: 'left 0.2s',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
-                }} />
-              </button>
+              {toggleSwitch(sidebarDefault, () => toggleSidebar(!sidebarDefault))}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16, marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontSize:13, color:'var(--text)', marginBottom:2 }}>Světlý režim</div>
+                <div style={{ fontSize:12, color:'var(--text3)' }}>Přepnout na světlé téma aplikace</div>
+              </div>
+              {toggleSwitch(lightMode, () => toggleLightMode(!lightMode))}
             </div>
           </div>
           <div className="card">
