@@ -17,7 +17,7 @@ export default function LoginPage() {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
-        router.replace('/app')
+        router.replace('/app/chat')
       } else {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
