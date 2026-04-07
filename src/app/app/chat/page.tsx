@@ -205,23 +205,23 @@ function ChatPageInner() {
   return (
     <>
       {/* Celý chat layout */}
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', position: 'relative' }}>
 
         {/* TOP BAR */}
         <div style={{
           height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0 20px', flexShrink: 0,
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: '1px solid var(--border)',
         }}>
           <button
             onClick={() => setHistoryOpen(o => !o)}
             style={{
               background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'inherit',
+              color: 'var(--text3)', fontSize: 13, fontFamily: 'inherit',
               padding: '4px 0', transition: 'color 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
           >
             {historyOpen ? '‹ Historie' : 'Historie ›'}
           </button>
@@ -229,14 +229,14 @@ function ChatPageInner() {
             onClick={newChat}
             style={{
               background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 20, color: 'rgba(255,255,255,0.6)',
+              border: '1px solid var(--border2)',
+              borderRadius: 20, color: 'var(--text2)',
               fontSize: 13, fontFamily: 'inherit',
               padding: '5px 16px', cursor: 'pointer',
               transition: 'border-color 0.12s, color 0.12s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text3)'; e.currentTarget.style.color = 'var(--text)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
           >
             Nová konverzace
           </button>
@@ -246,8 +246,8 @@ function ChatPageInner() {
         {historyOpen && (
           <div style={{
             position: 'absolute', top: 48, left: 0, bottom: 0,
-            width: 260, background: 'rgba(10,10,10,0.95)',
-            borderRight: '1px solid rgba(255,255,255,0.06)',
+            width: 260, background: 'var(--surface2)',
+            borderRight: '1px solid var(--border)',
             display: 'flex', flexDirection: 'column',
             padding: '12px 10px', gap: 3, zIndex: 20,
             overflowY: 'auto',
@@ -262,13 +262,13 @@ function ChatPageInner() {
               <button key={s.id} onClick={() => openSession(s)} style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '8px 10px', borderRadius: 8, border: 'none',
-                background: sessionId === s.id ? 'rgba(255,255,255,0.07)' : 'transparent',
+                background: sessionId === s.id ? 'var(--surface3)' : 'transparent',
                 cursor: 'pointer', transition: 'background 0.1s',
               }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'rgba(255,255,255,0.07)' : 'transparent' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'var(--surface3)' : 'transparent' }}
               >
-                <div style={{ fontSize: 13, color: sessionId === s.id ? '#fff' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.1s' }}>
+                <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.1s' }}>
                   {s.title || 'Chat'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
@@ -288,10 +288,10 @@ function ChatPageInner() {
               <style>{`@keyframes sway{0%,100%{transform:rotate(-1.5deg) translateY(0px)}50%{transform:rotate(1.5deg) translateY(-6px)}}`}</style>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/banana.png" alt="" width={260} style={{ marginBottom: 32, animation: 'sway 3.2s ease-in-out infinite', transformOrigin: 'center' }}/>
-              <div style={{ color: '#fff', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>
+              <div style={{ color: 'var(--text)', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>
                 Jak vám mohu pomoci?
               </div>
-              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', marginBottom: 36 }}>
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 36 }}>
                 Vytvořte use case, zdokumentujte projekt nebo se zeptejte.
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -302,14 +302,14 @@ function ChatPageInner() {
                 ].map(({ label, action }) => (
                   <button key={label} onClick={action} style={{
                     background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 20, color: 'rgba(255,255,255,0.7)',
+                    border: '1px solid var(--border2)',
+                    borderRadius: 20, color: 'var(--text2)',
                     fontSize: 13, padding: '8px 18px',
                     cursor: 'pointer', fontFamily: 'inherit',
                     transition: 'border-color 0.15s, color 0.15s',
                   }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = '#fff' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = 'var(--text)' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
                   >{label}</button>
                 ))}
               </div>
@@ -338,7 +338,7 @@ function ChatPageInner() {
           <div style={{ maxWidth: 640, margin: '0 auto' }}>
             {/* Preview přílohy */}
             {attachment && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
                 {attachment.kind === 'image' ? (
                   <img src={attachment.preview} alt={attachment.name} style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                 ) : (
@@ -359,16 +359,16 @@ function ChatPageInner() {
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                 style={{
                   width: '100%', height: 48, borderRadius: 12,
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  padding: '12px 50px 12px 16px', color: '#fff',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border2)',
+                  padding: '12px 50px 12px 16px', color: 'var(--text)',
                   fontSize: 14, fontFamily: 'inherit',
                   resize: 'none', outline: 'none',
                   lineHeight: '24px', transition: 'border-color 0.15s',
                   overflowY: 'hidden',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'rgba(224,32,32,0.5)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'var(--border2)')}
               />
               <button
                 onClick={() => send()}
@@ -376,28 +376,28 @@ function ChatPageInner() {
                 style={{
                   position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
                   width: 32, height: 32, borderRadius: 8,
-                  background: 'rgba(255,255,255,0.15)',
+                  background: 'var(--surface3)',
                   border: 'none', cursor: loading || (!input.trim() && !attachment) ? 'not-allowed' : 'pointer',
-                  color: '#fff', fontSize: 16,
+                  color: 'var(--text)', fontSize: 16,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'background 0.15s',
                   opacity: loading || (!input.trim() && !attachment) ? 0.4 : 1,
                 }}
                 onMouseEnter={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = '#e02020' }}
-                onMouseLeave={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
+                onMouseLeave={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = 'var(--surface3)' }}
               >↑</button>
             </div>
 
             {/* Spodní lišta */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingLeft: 2, paddingRight: 2 }}>
               <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+                <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
                 >📎 Přiložit soubor</button>
-                <button onClick={() => router.push('/app/inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+                <button onClick={() => router.push('/app/inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
                 >📥 Z inboxu</button>
                 {messages.length > 2 && !saved && (
                   <button onClick={save} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(224,32,32,0.6)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
@@ -406,7 +406,7 @@ function ChatPageInner() {
                   >💾 {mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}</button>
                 )}
               </div>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Shift+Enter = nový řádek</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Shift+Enter = nový řádek</span>
             </div>
           </div>
         </div>
