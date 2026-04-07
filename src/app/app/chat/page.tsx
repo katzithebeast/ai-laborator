@@ -44,7 +44,7 @@ function ChatPageInner() {
   const [toast, setToast] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
-  const [historyOpen, setHistoryOpen] = useState(true)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
