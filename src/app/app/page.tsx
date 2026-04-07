@@ -5,17 +5,18 @@ import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
   const router = useRouter()
-  const [stats, setStats] = useState({ inbox: 0, claimed: 0, review: 0, published: 0 })
+  const [stats, setStats] = useState({ inbox: 0, claimed: 0, review: 0, published: 0, projects: 0 })
 
   useEffect(() => {
     const load = async () => {
-      const [{ count: inbox }, { count: claimed }, { count: review }, { count: published }] = await Promise.all([
+      const [{ count: inbox }, { count: claimed }, { count: review }, { count: published }, { count: projectsCount }] = await Promise.all([
         supabase.from('tools').select('*', { count: 'exact', head: true }).eq('status', 'new'),
         supabase.from('tools').select('*', { count: 'exact', head: true }).eq('status', 'claimed'),
         supabase.from('use_cases').select('*', { count: 'exact', head: true }).eq('status', 'review'),
         supabase.from('use_cases').select('*', { count: 'exact', head: true }).eq('status', 'published'),
+        supabase.from('projects').select('*', { count: 'exact', head: true }),
       ])
-      setStats({ inbox: inbox ?? 0, claimed: claimed ?? 0, review: review ?? 0, published: published ?? 0 })
+      setStats({ inbox: inbox ?? 0, claimed: claimed ?? 0, review: review ?? 0, published: published ?? 0, projects: projectsCount ?? 0 })
     }
     load()
   }, [])
@@ -36,6 +37,7 @@ export default function Dashboard() {
             { label: 'Claimnuté nástroje', value: stats.claimed, sub: 'aktivní', href: '/app/claimboard' },
             { label: 'Čeká na kontrolu', value: stats.review, sub: 'fronta', href: '/app/review' },
             { label: 'Publikované use cases', value: stats.published, sub: 'v knihovně', href: '/app/usecases' },
+            { label: 'Projekty', value: stats.projects, sub: 'zdokumentováno', href: '/app/projects' },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ cursor:'pointer' }} onClick={() => router.push(s.href)}>
               <div className="stat-label">{s.label}</div>
@@ -65,6 +67,13 @@ export default function Dashboard() {
             <div className="wf-card-btns">
               <button className="btn btn-outline btn-sm" onClick={() => router.push('/app/chat')}>Otevřít chat</button>
               <button className="btn btn-ghost btn-sm" onClick={() => router.push('/app/interview')}>Interview mód</button>
+            </div>
+          </div>
+          <div className="wf-card">
+            <h3>📁 Projekty</h3>
+            <p>Zpětná analýza projektů kde byla použita AI. Co fungovalo, co ne a co příště.</p>
+            <div className="wf-card-btns">
+              <button className="btn btn-outline btn-sm" onClick={() => router.push('/app/projects')}>Otevřít projekty</button>
             </div>
           </div>
         </div>

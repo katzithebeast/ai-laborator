@@ -4,16 +4,52 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 
-const NAV = [
-  { id: 'chat',       label: 'Chat',           icon: '💬', href: '/app/chat' },
-  { id: 'dashboard',  label: 'Přehled',        icon: '▦',  href: '/app' },
-  { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹',  href: '/app/inbox' },
-  { id: 'claimboard', label: 'Claim board',    icon: '✎',  href: '/app/claimboard' },
-  { id: 'interview',  label: 'Interview',      icon: '⚙',  href: '/app/interview' },
-  { id: 'usecases',   label: 'Use casy',       icon: '⧉',  href: '/app/usecases' },
-  { id: 'review',     label: 'Kontrola',       icon: '✓',  href: '/app/review' },
-  { id: 'settings',   label: 'Nastavení',      icon: '◈',  href: '/app/settings' },
+type NavItem = { id: string; label: string; icon: string; href: string }
+type NavSection = { heading?: string; items: NavItem[] }
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    items: [
+      { id: 'chat',      label: 'Chat',    icon: '💬', href: '/app/chat' },
+      { id: 'dashboard', label: 'Přehled', icon: '▦',  href: '/app' },
+    ],
+  },
+  {
+    heading: 'AI NÁSTROJE',
+    items: [
+      { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹', href: '/app/inbox' },
+      { id: 'claimboard', label: 'Claim board',    icon: '✎', href: '/app/claimboard' },
+      { id: 'interview',  label: 'Interview',      icon: '⚙', href: '/app/interview' },
+      { id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
+    ],
+  },
+  {
+    heading: 'PROJEKTY',
+    items: [
+      { id: 'projects', label: 'Projekty', icon: '📁', href: '/app/projects' },
+    ],
+  },
+  {
+    heading: 'SPRÁVA',
+    items: [
+      { id: 'review',   label: 'Kontrola',  icon: '✓', href: '/app/review' },
+      { id: 'settings', label: 'Nastavení', icon: '◈', href: '/app/settings' },
+    ],
+  },
 ]
+
+const NAV = NAV_SECTIONS.flatMap(s => s.items)
+
+const navHeadingStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.7px',
+  color: 'var(--text3)',
+  marginTop: 16,
+  marginBottom: 4,
+  paddingLeft: 11,
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -47,11 +83,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span>use case systém</span>
           </div>
         </div>
-        {NAV.map(n => (
-          <button key={n.id} className={`nav-link ${activeId === n.id ? 'active' : ''}`}
-            onClick={() => router.push(n.href)}>
-            <span className="nav-icon">{n.icon}</span>{n.label}
-          </button>
+        {NAV_SECTIONS.map((section, i) => (
+          <div key={i}>
+            {section.heading && <div style={navHeadingStyle}>{section.heading}</div>}
+            {section.items.map(n => (
+              <button key={n.id} className={`nav-link ${activeId === n.id ? 'active' : ''}`}
+                onClick={() => router.push(n.href)}>
+                <span className="nav-icon">{n.icon}</span>{n.label}
+              </button>
+            ))}
+          </div>
         ))}
         <div className="sidebar-tip">
           <strong>Tip</strong><br />
