@@ -26,7 +26,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'PROJEKTY',
     items: [
-      { id: 'projects', label: 'Projekty', icon: '📁', href: '/app/projects' },
+      { id: 'projects', label: 'Projekty', icon: '⬡', href: '/app/projects' },
     ],
   },
   {
@@ -45,10 +45,11 @@ const navHeadingStyle: React.CSSProperties = {
   fontWeight: 700,
   textTransform: 'uppercase',
   letterSpacing: '0.7px',
-  color: 'var(--text3)',
+  color: 'rgba(255,255,255,0.25)',
   marginTop: 16,
   marginBottom: 4,
   paddingLeft: 11,
+  whiteSpace: 'nowrap',
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -56,6 +57,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -69,14 +71,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [router])
 
-  if (loading) return <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh', color:'#aaa' }}>Načítám…</div>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#606060', background: '#0a0a0a' }}>
+      Načítám…
+    </div>
+  )
 
   const activeId = NAV.find(n => pathname === n.href || (n.href !== '/app' && pathname.startsWith(n.href)))?.id ?? 'dashboard'
 
   return (
     <div className="app">
-      <nav className="sidebar">
-        <div className="sidebar-logo">
+      {/* Sidebar toggle button */}
+      <button
+        onClick={() => setSidebarOpen(o => !o)}
+        title={sidebarOpen ? 'Skrýt sidebar' : 'Zobrazit sidebar'}
+        style={{
+          position: 'fixed',
+          top: '50%',
+          left: sidebarOpen ? 208 : 0,
+          transform: 'translateY(-50%)',
+          zIndex: 60,
+          background: 'transparent',
+          border: 'none',
+          borderRadius: 0,
+          boxShadow: 'none',
+          color: '#fff',
+          fontSize: 28,
+          cursor: 'pointer',
+          lineHeight: 1,
+          padding: '4px 2px',
+          transition: 'left 0.25s ease, color 0.12s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.color = '#e02020')}
+        onMouseLeave={e => (e.currentTarget.style.color = '#fff')}
+      >
+        {sidebarOpen ? '‹' : '›'}
+      </button>
+
+      <nav className={`sidebar${sidebarOpen ? '' : ' closed'}`}>
+        <div className="sidebar-logo" onClick={() => router.push('/app/chat')} style={{ cursor: 'pointer' }}>
           <div className="sidebar-logo-mark">λ</div>
           <div className="sidebar-logo-text">
             <strong>AI Laboratoř</strong>
@@ -98,7 +131,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <strong>Tip</strong><br />
           Napiš popis v <strong>Chatu</strong> → AI se doptá → uloží use case. Nebo claimni nástroj z <strong>Inboxu</strong>.
         </div>
-        <div style={{ padding:'10px 6px 0', fontSize:11, color:'var(--text3)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ padding: '10px 6px 0', fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', whiteSpace: 'nowrap' }}>
           <span>{user?.email?.split('@')[0]}</span>
           <button className="btn btn-ghost btn-xs"
             onClick={async () => { await supabase.auth.signOut(); router.replace('/login') }}>

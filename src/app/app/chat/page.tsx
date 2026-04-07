@@ -14,9 +14,9 @@ type Session = {
 type Attachment = {
   name: string
   kind: 'image' | 'doc'
-  mediaType: string   // 'image/jpeg' atd., pro doc prázdný
-  data: string        // base64 pro obrázky, text pro dokumenty
-  preview: string     // object URL jen pro obrázky
+  mediaType: string
+  data: string
+  preview: string
 }
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
@@ -44,6 +44,7 @@ function ChatPageInner() {
   const [toast, setToast] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
+  const [historyOpen, setHistoryOpen] = useState(true)
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -106,13 +107,10 @@ function ChatPageInner() {
     if ((!userText && !attachment) || loading) return
     setInput('')
 
-    // Zobrazovaný text v chatu
     const displayText = userText || `📎 ${attachment!.name}`
     const next: Message[] = [...messages, { role: 'user', content: displayText }]
     setMessages(next)
 
-    // Sestavení messages pro API — předchozí zůstanou jako string,
-    // aktuální zpráva dostane content array pokud je příloha
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apiMessages: any[] = next.slice(0, -1).map(m => ({ role: m.role, content: m.content }))
 
@@ -206,116 +204,217 @@ function ChatPageInner() {
 
   return (
     <>
-      <div className="page-header" style={{ paddingBottom: 14 }}>
-        <div><h1>Chat</h1><p>Popiš projekt nebo nástroj — AI se doptá a vytvoří use case.</p></div>
-        <div className="page-actions">
-          <button className="btn btn-outline btn-sm" onClick={newChat}>+ Nový chat</button>
-          <button className="btn btn-ghost btn-xs" onClick={() => router.push('/app/interview')}>Interview mód</button>
+      {/* Celý chat layout */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0a0a0a', position: 'relative' }}>
+
+        {/* TOP BAR */}
+        <div style={{
+          height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 20px', flexShrink: 0,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+        }}>
+          <button
+            onClick={() => setHistoryOpen(o => !o)}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'rgba(255,255,255,0.4)', fontSize: 13, fontFamily: 'inherit',
+              padding: '4px 0', transition: 'color 0.12s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+          >
+            {historyOpen ? '‹ Historie' : 'Historie ›'}
+          </button>
+          <button
+            onClick={newChat}
+            style={{
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.15)',
+              borderRadius: 20, color: 'rgba(255,255,255,0.6)',
+              fontSize: 13, fontFamily: 'inherit',
+              padding: '5px 16px', cursor: 'pointer',
+              transition: 'border-color 0.12s, color 0.12s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.35)'; e.currentTarget.style.color = '#fff' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = 'rgba(255,255,255,0.6)' }}
+          >
+            Nová konverzace
+          </button>
         </div>
-      </div>
 
-      <div className="page-body" style={{ paddingTop: 12, display: 'flex', gap: 14, height: 'calc(100vh - 120px)', minHeight: 500 }}>
-
-        {/* HISTORIE CHATŮ */}
-        <div style={{ width: 220, minWidth: 220, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
-            Historie chatů
-          </div>
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {/* PANEL HISTORIE — absolutní překryv vlevo */}
+        {historyOpen && (
+          <div style={{
+            position: 'absolute', top: 48, left: 0, bottom: 0,
+            width: 260, background: 'rgba(10,10,10,0.95)',
+            borderRight: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex', flexDirection: 'column',
+            padding: '12px 10px', gap: 3, zIndex: 20,
+            overflowY: 'auto',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6, paddingLeft: 4 }}>
+              Historie
+            </div>
             {sessions.length === 0 && (
               <div style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', paddingTop: 20 }}>Žádné chaty zatím</div>
             )}
             {sessions.map(s => (
               <button key={s.id} onClick={() => openSession(s)} style={{
                 display: 'block', width: '100%', textAlign: 'left',
-                padding: '8px 10px', borderRadius: 8,
-                border: `1px solid ${sessionId === s.id ? 'var(--border)' : 'transparent'}`,
-                background: sessionId === s.id ? 'var(--surface)' : 'transparent',
+                padding: '8px 10px', borderRadius: 8, border: 'none',
+                background: sessionId === s.id ? 'rgba(255,255,255,0.07)' : 'transparent',
                 cursor: 'pointer', transition: 'background 0.1s',
               }}
-                onMouseEnter={e => { if (sessionId !== s.id) (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface2)' }}
-                onMouseLeave={e => { if (sessionId !== s.id) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'rgba(255,255,255,0.07)' : 'transparent' }}
               >
-                <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: 13, color: sessionId === s.id ? '#fff' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.1s' }}>
                   {s.title || 'Chat'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
               </button>
             ))}
           </div>
+        )}
+
+        {/* ZPRÁVY */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column' }}>
+          {messages.length === 0 ? (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', flex: 1, textAlign: 'center',
+              padding: '80px 20px 40px', gap: 0,
+            }}>
+              <style>{`@keyframes sway{0%,100%{transform:rotate(-1.5deg) translateY(0px)}50%{transform:rotate(1.5deg) translateY(-6px)}}`}</style>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/banana.png" alt="" width={260} style={{ marginBottom: 32, animation: 'sway 3.2s ease-in-out infinite', transformOrigin: 'center' }}/>
+              <div style={{ color: '#fff', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>
+                Jak vám mohu pomoci?
+              </div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', marginBottom: 36 }}>
+                Vytvořte use case, zdokumentujte projekt nebo se zeptejte.
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {[
+                  { label: 'Vytvořit use case pro AI nástroj', action: () => send('Chci vytvořit use case pro AI nástroj, který jsme testovali.') },
+                  { label: 'Zdokumentovat projekt s AI', action: () => { setMode('project'); send('Chci zpětně zdokumentovat projekt kde jsme použili AI.', 'project') } },
+                  { label: 'Mám dotaz', action: () => send('Mám dotaz ohledně AI nástrojů nebo use casů.') },
+                ].map(({ label, action }) => (
+                  <button key={label} onClick={action} style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 20, color: 'rgba(255,255,255,0.7)',
+                    fontSize: 13, padding: '8px 18px',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'border-color 0.15s, color 0.15s',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = '#fff' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)' }}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 680, width: '100%', margin: '0 auto' }}>
+              {messages.map((m, i) => (
+                <div key={i} className={`msg ${m.role}`}>
+                  <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
+                  <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
+                </div>
+              ))}
+              {loading && (
+                <div className="msg assistant">
+                  <div className="msg-avatar">λ</div>
+                  <div className="typing-dot"><span /><span /><span /></div>
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+          )}
         </div>
 
-        {/* CHAT */}
-        <div className="chat-wrap" style={{ flex: 1 }}>
-          <div className="chat-header">
-            <span>model: <strong>claude-sonnet-4-20250514</strong> · klíč na serveru</span>
-          </div>
-          <div className="chat-messages">
-            {messages.length === 0 ? (
-              <div className="chat-empty">
-                <span className="chat-empty-icon">🧪</span>
-                <strong style={{ color: 'var(--text)', fontSize: 15 }}>AI asistent pro use cases</strong>
-                <span>Napiš popis projektu, nástroje nebo situace. AI se doptá a vytvoří draft.</span>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => send('Chci vytvořit use case pro AI nástroj, který jsme testovali.')}>🔧 Chci vytvořit use case pro AI nástroj</button>
-                  <button className="btn btn-outline btn-sm" onClick={() => { setMode('project'); send('Chci zpětně zdokumentovat projekt kde jsme použili AI.', 'project') }}>📋 Chci vytvořit use case zpětně z projektu</button>
-                  <button className="btn btn-outline btn-sm" onClick={() => send('Mám dotaz ohledně AI nástrojů nebo use casů.')}>❓ Mám na tebe dotaz</button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((m, i) => (
-                  <div key={i} className={`msg ${m.role}`}>
-                    <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
-                    <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
-                  </div>
-                ))}
-                {loading && (
-                  <div className="msg assistant">
-                    <div className="msg-avatar">λ</div>
-                    <div className="typing-dot"><span /><span /><span /></div>
-                  </div>
-                )}
-                <div ref={endRef} />
-              </>
-            )}
-          </div>
-          <div className="chat-input-area">
-            {/* PREVIEW PŘÍLOHY */}
+        {/* INPUT AREA */}
+        <div style={{ padding: '16px 20px 20px', flexShrink: 0 }}>
+          <div style={{ maxWidth: 640, margin: '0 auto' }}>
+            {/* Preview přílohy */}
             {attachment && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, marginBottom: 8 }}>
                 {attachment.kind === 'image' ? (
-                  <img src={attachment.preview} alt={attachment.name} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                  <img src={attachment.preview} alt={attachment.name} style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                 ) : (
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
                 )}
-                <span style={{ fontSize: 12.5, color: 'var(--text2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
-                <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
+                <span style={{ fontSize: 12, color: 'var(--text2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
+                <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 15, lineHeight: 1, padding: '0 2px' }}>×</button>
               </div>
             )}
-            <textarea className="chat-textarea"
-              placeholder="Napiš zprávu… (Enter = odeslat, Shift+Enter = nový řádek)"
-              value={input} onChange={e => setInput(e.target.value)}
-              disabled={loading}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
-            <div className="chat-toolbar">
-              <div className="chat-toolbar-left">
-                <button className="btn btn-ghost btn-xs" onClick={() => fileInputRef.current?.click()} disabled={loading}>📎 Přiložit soubor</button>
-                <button className="btn btn-ghost btn-xs" onClick={() => router.push('/app/inbox')}>📥 Z inboxu</button>
-              </div>
-              {messages.length > 2 && !saved && (
-                <button className="btn btn-accent btn-sm" onClick={save}>
-                  {mode === 'project' ? '💾 Uložit projekt' : '💾 Uložit use case'}
-                </button>
-              )}
-              <button className="btn btn-primary btn-sm" onClick={() => send()} disabled={loading || (!input.trim() && !attachment)}>Odeslat ↵</button>
+
+            {/* Input + send button */}
+            <div style={{ position: 'relative' }}>
+              <textarea
+                placeholder="Napiš zprávu…"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                disabled={loading}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                style={{
+                  width: '100%', height: 48, borderRadius: 12,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: '12px 50px 12px 16px', color: '#fff',
+                  fontSize: 14, fontFamily: 'inherit',
+                  resize: 'none', outline: 'none',
+                  lineHeight: '24px', transition: 'border-color 0.15s',
+                  overflowY: 'hidden',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(224,32,32,0.5)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)')}
+              />
+              <button
+                onClick={() => send()}
+                disabled={loading || (!input.trim() && !attachment)}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  width: 32, height: 32, borderRadius: 8,
+                  background: 'rgba(255,255,255,0.15)',
+                  border: 'none', cursor: loading || (!input.trim() && !attachment) ? 'not-allowed' : 'pointer',
+                  color: '#fff', fontSize: 16,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.15s',
+                  opacity: loading || (!input.trim() && !attachment) ? 0.4 : 1,
+                }}
+                onMouseEnter={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = '#e02020' }}
+                onMouseLeave={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
+              >↑</button>
             </div>
-            <input ref={fileInputRef} type="file" style={{ display: 'none' }}
-              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-              onChange={handleFile} />
+
+            {/* Spodní lišta */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingLeft: 2, paddingRight: 2 }}>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+                >📎 Přiložit soubor</button>
+                <button onClick={() => router.push('/app/inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.25)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.25)')}
+                >📥 Z inboxu</button>
+                {messages.length > 2 && !saved && (
+                  <button onClick={save} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(224,32,32,0.6)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = '#e02020')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(224,32,32,0.6)')}
+                  >💾 {mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}</button>
+                )}
+              </div>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.2)' }}>Shift+Enter = nový řádek</span>
+            </div>
           </div>
         </div>
       </div>
+
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        onChange={handleFile} />
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
     </>
   )
