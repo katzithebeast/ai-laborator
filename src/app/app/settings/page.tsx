@@ -7,6 +7,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('')
   const [team, setTeam] = useState('')
   const [saved, setSaved] = useState(false)
+  const [sidebarDefault, setSidebarDefault] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -16,7 +17,13 @@ export default function SettingsPage() {
       if (data) { setFullName(data.full_name ?? ''); setTeam(data.team ?? '') }
     }
     load()
+    setSidebarDefault(localStorage.getItem('sidebar_default_open') !== 'false')
   }, [])
+
+  const toggleSidebar = (val: boolean) => {
+    setSidebarDefault(val)
+    localStorage.setItem('sidebar_default_open', String(val))
+  }
 
   const save = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -47,6 +54,39 @@ export default function SettingsPage() {
               <input className="form-input" value={team} onChange={e => setTeam(e.target.value)} placeholder="Marketing, IT…" />
             </div>
             <button className="btn btn-primary" onClick={save}>{saved ? '✓ Uloženo' : 'Uložit'}</button>
+          </div>
+          <div className="card">
+            <h3 style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>Předvolby zobrazení</h3>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:16 }}>
+              <div>
+                <div style={{ fontSize:13, color:'var(--text)', marginBottom:2 }}>Boční panel otevřený po přihlášení</div>
+                <div style={{ fontSize:12, color:'var(--text3)' }}>Sidebar se otevře automaticky při každém načtení</div>
+              </div>
+              <button
+                onClick={() => toggleSidebar(!sidebarDefault)}
+                style={{
+                  flexShrink: 0,
+                  width: 44, height: 24,
+                  borderRadius: 12,
+                  border: 'none',
+                  cursor: 'pointer',
+                  background: sidebarDefault ? '#e02020' : 'rgba(255,255,255,0.12)',
+                  position: 'relative',
+                  transition: 'background 0.2s',
+                  padding: 0,
+                }}
+              >
+                <span style={{
+                  position: 'absolute',
+                  top: 3, left: sidebarDefault ? 23 : 3,
+                  width: 18, height: 18,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  transition: 'left 0.2s',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                }} />
+              </button>
+            </div>
           </div>
           <div className="card">
             <h3 style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>O aplikaci</h3>

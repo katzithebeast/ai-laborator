@@ -57,7 +57,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(() =>
+    typeof window === 'undefined' || localStorage.getItem('sidebar_default_open') !== 'false'
+  )
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
