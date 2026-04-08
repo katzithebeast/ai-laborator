@@ -209,26 +209,48 @@ function ChatPageInner() {
     setSaving(true)
     try {
       const isProject = mode === 'project'
+
+      // 1. Extrahuj data z konverzace
       const res = await fetch(isProject ? '/api/extract-project' : '/api/extract', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
       })
       const data = await res.json()
-      const { data: { user } } = await supabase.auth.getUser()
+      console.log('Extracted data:', data)
+
+      if (data.error) throw new Error(data.error)
+
+      // 2. Získej přihlášeného uživatele
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      console.log('User:', user, userError)
+
+      if (!user) throw new Error('Nejsi přihlášen')
+
+      // 3. Ulož do Supabase
       const table = isProject ? 'projects' : 'use_cases'
-      await supabase.from(table).insert({
-        ...data,
-        author_id: user?.id,
-        author_name: user?.email?.split('@')[0],
-        status: 'draft',
-        chat_history: messages,
-      })
+      const { data: inserted, error: insertError } = await supabase
+        .from(table)
+        .insert({
+          ...data,
+          author_id: user.id,
+          author_name: user.email?.split('@')[0] || 'Unknown',
+          status: 'draft',
+          chat_history: messages,
+        })
+        .select()
+        .single()
+
+      console.log('Insert result:', inserted, insertError)
+
+      if (insertError) throw insertError
+
       setSaved(true)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
       setTimeout(() => router.push(isProject ? '/app/projects' : '/app/usecases'), 1500)
-    } catch {
-      showToast('Chyba při ukládání')
+    } catch (e) {
+      console.error('Save error:', e)
+      alert('Chyba při ukládání: ' + (e as Error).message)
     } finally {
       setSaving(false)
     }
