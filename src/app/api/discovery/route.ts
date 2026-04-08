@@ -17,17 +17,25 @@ type DiscoveredTool = {
   tags?: string[]
 }
 
-const firstWord = (name: string) => name.toLowerCase().split(/\s+/)[0]
+const normalize = (n: string) =>
+  n.toLowerCase().replace(/\b(ai|pro|plus|alpha|beta|gen|ml)\b/g, '').replace(/\s+/g, ' ').trim()
 
 export async function POST() {
   try {
+    const { data: existing } = await supabase.from('tools').select('name, vendor')
+    const existingNames = existing?.map(e => e.name).join(', ') || ''
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
       system: 'Vrať POUZE validní JSON array, bez jakéhokoliv textu okolo, bez markdown backticks.',
       messages: [{
         role: 'user',
-        content: 'Navrhni přesně 3 zajímavé AI nástroje pro firemní použití.\nPravidla:\n- Každý nástroj musí být od jiného vendora\n- Nesmí to být různé verze stejného nástroje (ne Claude 3.5 i Claude 4)\n- Zaměř se na nástroje pro produktivitu, automatizaci nebo analýzu\n- Vrať POUZE JSON array se 3 objekty\n\n[{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]',
+        content: `Navrhni přesně 3 AI nástroje které JEŠTĚ NEJSOU běžně známé nebo jsou velmi nové (vydané v roce 2024-2025).
+Vyber z RŮZNÝCH kategorií - například: úprava obrázků/videa, generování textu, správa dat, generování kódu, marketing, účetnictví/fakturace, HR/školení, plánování, vývoj aplikací, zákaznická podpora, SEO, design, prezentace, překlad, právní dokumenty atd.
+Každý nástroj musí být od jiného vendora a jiné kategorie.
+Tyto nástroje už máme, NENAVRHUJ je znovu: ${existingNames}
+Vrať POUZE JSON array se 3 objekty: [{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]`,
       }],
     })
 
@@ -38,13 +46,11 @@ export async function POST() {
       return NextResponse.json({ added: 0 })
     }
 
-    const { data: existing } = await supabase.from('tools').select('name, vendor')
-
     let added = 0
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const isDuplicate = existing?.some(e => firstWord(e.name) === firstWord(tool.name))
+      const isDuplicate = existing?.some(e => normalize(e.name) === normalize(tool.name))
 
       if (isDuplicate) continue
 
@@ -58,6 +64,7 @@ export async function POST() {
         tags: Array.isArray(tool.tags) ? tool.tags : [],
         status: 'new',
         source: 'discovery',
+        is_new: true,
       })
       added++
     }

@@ -178,9 +178,14 @@ export default function InboxPage() {
               t.description?.toLowerCase().includes(q.toLowerCase()) ||
               t.tags?.some(tag => tag.toLowerCase().includes(q.toLowerCase()))
             ).map(t => (
-            <div key={t.id} className="tool-card">
+            <div key={t.id} className="tool-card" style={t.is_new && (Date.now() - new Date(t.created_at).getTime() < 48 * 60 * 60 * 1000) ? { borderLeft: '3px solid #22c55e' } : {}}>
               <div style={{ flex:1 }}>
-                <div className="tool-name">{t.name}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="tool-name">{t.name}</div>
+                  {t.is_new && (Date.now() - new Date(t.created_at).getTime() < 48 * 60 * 60 * 1000) && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '1px 6px', whiteSpace: 'nowrap' }}>Nové ✨</span>
+                  )}
+                </div>
                 <div className="tool-vendor">
                   {t.vendor}{t.website_url && <> · <a href={t.website_url} target="_blank" rel="noopener">otevřít ↗</a></>}
                   {' · '}source: {t.source}
