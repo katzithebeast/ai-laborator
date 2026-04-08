@@ -511,16 +511,18 @@ function UseCasesContent() {
               {selected.confidence_score > 0 && <span className="tag">Confidence: {selected.confidence_score}%</span>}
             </div>
 
-            <div className="modal-footer">
+            <div className="modal-footer" style={{ flexWrap: 'wrap', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: '1 1 100%' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
+              </div>
               <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
               <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
               {selected.status === 'draft' && (
-                <button className="btn btn-primary" onClick={() => sendToReview(selected.id)}>→ Poslat do review</button>
+                <button className="btn btn-primary btn-sm" onClick={() => sendToReview(selected.id)}>→ Review</button>
               )}
-              <button className="btn btn-ghost" onClick={() => setSelected(null)}>Zavřít</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Zavřít</button>
             </div>
           </div>
         </div>
