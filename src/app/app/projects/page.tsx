@@ -229,11 +229,15 @@ export default function ProjectsPage() {
     URL.revokeObjectURL(url)
   }
 
-  const filtered = projects.filter(p =>
-    !q || p.title?.toLowerCase().includes(q.toLowerCase()) ||
-    p.client?.toLowerCase().includes(q.toLowerCase()) ||
-    p.tools_used?.toLowerCase().includes(q.toLowerCase())
-  )
+  const filtered = projects.filter(p => {
+    const ql = q.toLowerCase()
+    return !q || p.title?.toLowerCase().includes(ql) ||
+      p.client?.toLowerCase().includes(ql) ||
+      p.tools_used?.toLowerCase().includes(ql) ||
+      p.team?.toLowerCase().includes(ql) ||
+      p.description?.toLowerCase().includes(ql) ||
+      p.author_name?.toLowerCase().includes(ql)
+  })
 
   const statusTag: Record<string, string> = {
     draft: '', review: 'tag-amber', published: 'tag-green'

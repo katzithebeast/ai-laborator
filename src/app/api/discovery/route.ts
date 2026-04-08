@@ -17,6 +17,18 @@ type DiscoveredTool = {
   tags?: string[]
 }
 
+function isSimilar(a: string, b: string): boolean {
+  const na = a.toLowerCase().trim()
+  const nb = b.toLowerCase().trim()
+  if (na === nb) return true
+  if (na.includes(nb) || nb.includes(na)) return true
+  if (
+    Math.abs(na.length - nb.length) < 3 &&
+    na.replace(/\s/g, '') === nb.replace(/\s/g, '')
+  ) return true
+  return false
+}
+
 export async function POST() {
   try {
     const response = await client.messages.create({
@@ -25,7 +37,7 @@ export async function POST() {
       system: 'Vrať POUZE validní JSON array, bez jakéhokoliv textu okolo, bez markdown backticks.',
       messages: [{
         role: 'user',
-        content: 'Navrhni 5 nejnovějších a nejzajímavějších AI nástrojů které stojí za vyzkoušení ve firmě. Pro každý vrať objekt s klíči: name (string), vendor (string), website_url (string), description (string), category (string), tags (string array).',
+        content: 'Navrhni 5 nejnovějších a nejzajímavějších AI nástrojů které stojí za vyzkoušení ve firmě. Navrhni pouze nástroje které jsou velmi nové (2024-2026), co nejaktuálnější. Každý nástroj musí mít unikátní přesný název. Pro každý vrať objekt s klíči: name (string), vendor (string), website_url (string), description (string), category (string), tags (string array).',
       }],
     })
 
@@ -36,15 +48,18 @@ export async function POST() {
       return NextResponse.json({ added: 0 })
     }
 
+    const { data: existing } = await supabase.from('tools').select('name, vendor')
+
     let added = 0
     for (const tool of discovered) {
-      const { data: existing } = await supabase
-        .from('tools')
-        .select('id')
-        .ilike('name', tool.name)
-        .single()
+      if (!tool.name) continue
 
-      if (existing) continue
+      const isDuplicate = existing?.some(e =>
+        isSimilar(e.name, tool.name) ||
+        (e.vendor && tool.vendor && isSimilar(e.vendor, tool.vendor) && isSimilar(e.name, tool.name))
+      )
+
+      if (isDuplicate) continue
 
       await supabase.from('tools').insert({
         name: tool.name,

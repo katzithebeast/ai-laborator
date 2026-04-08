@@ -230,9 +230,13 @@ function UseCasesContent() {
 
   const filtered = usecases.filter(u => {
     if (filterParam === 'published' && u.status !== 'published') return false
-    return !q || u.title?.toLowerCase().includes(q.toLowerCase()) ||
-      u.tool_name?.toLowerCase().includes(q.toLowerCase()) ||
-      u.team?.toLowerCase().includes(q.toLowerCase())
+    const ql = q.toLowerCase()
+    return !q || u.title?.toLowerCase().includes(ql) ||
+      u.tool_name?.toLowerCase().includes(ql) ||
+      u.team?.toLowerCase().includes(ql) ||
+      u.description?.toLowerCase().includes(ql) ||
+      u.author_name?.toLowerCase().includes(ql) ||
+      u.tags?.some(t => t.toLowerCase().includes(ql))
   })
 
   const statusTag: Record<string, string> = {

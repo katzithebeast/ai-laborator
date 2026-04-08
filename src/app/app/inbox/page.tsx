@@ -8,6 +8,8 @@ export default function InboxPage() {
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [discovering, setDiscovering] = useState(false)
+  const [deduplicating, setDeduplicating] = useState(false)
+  const [q, setQ] = useState('')
   const [form, setForm] = useState({ name:'', vendor:'', website_url:'', description:'', category:'', tags:'' })
 
   const fetchTools = async () => {
@@ -17,10 +19,13 @@ export default function InboxPage() {
 
   const load = async () => {
     await fetchTools()
+    setDiscovering(true)
     try {
       await fetch('/api/discovery', { method: 'POST' })
     } catch (e) {
       console.error('Auto-discovery failed', e)
+    } finally {
+      setDiscovering(false)
     }
     await fetchTools()
   }
@@ -91,6 +96,20 @@ export default function InboxPage() {
     }
   }
 
+  const deduplicate = async () => {
+    setDeduplicating(true)
+    try {
+      const res = await fetch('/api/deduplicate', { method: 'POST' })
+      const { deleted } = await res.json()
+      if (deleted > 0) fetchTools()
+      alert(`Hotovo — smazáno ${deleted} duplicit.`)
+    } catch (e) {
+      console.error('Deduplicate failed', e)
+    } finally {
+      setDeduplicating(false)
+    }
+  }
+
   const scoreTag = (score: number) => score >= 70 ? 'tag-amber' : score >= 50 ? 'tag-green' : ''
 
   return (
@@ -101,14 +120,25 @@ export default function InboxPage() {
           <button className="btn btn-outline" onClick={runDiscovery} disabled={discovering}>
             {discovering ? '⟳ Hledám…' : '⟳ Spustit discovery'}
           </button>
+          <button className="btn btn-ghost btn-sm" onClick={deduplicate} disabled={deduplicating}>
+            {deduplicating ? '⟳ Mažu…' : '⊗ Smazat duplicity'}
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={load}>Obnovit</button>
           <button className="btn btn-primary" onClick={() => setShowModal(true)}>+ Přidat ručně</button>
         </div>
       </div>
       <div className="page-body">
+        <input className="search-box" placeholder="Hledat nástroje…" value={q} onChange={e => setQ(e.target.value)} />
         {tools.length === 0
           ? <div className="empty"><span className="empty-icon">📭</span>Inbox je prázdný. Přidej nástroje ručně.</div>
-          : tools.map(t => (
+          : tools.filter(t =>
+              !q ||
+              t.name?.toLowerCase().includes(q.toLowerCase()) ||
+              t.vendor?.toLowerCase().includes(q.toLowerCase()) ||
+              t.category?.toLowerCase().includes(q.toLowerCase()) ||
+              t.description?.toLowerCase().includes(q.toLowerCase()) ||
+              t.tags?.some(tag => tag.toLowerCase().includes(q.toLowerCase()))
+            ).map(t => (
             <div key={t.id} className="tool-card">
               <div style={{ flex:1 }}>
                 <div className="tool-name">{t.name}</div>
