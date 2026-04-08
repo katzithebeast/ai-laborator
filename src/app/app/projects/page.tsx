@@ -101,23 +101,27 @@ export default function ProjectsPage() {
       would_repeat: form.would_repeat || null,
     }
     if (editingId) {
-      await supabase.from('projects').update(payload).eq('id', editingId)
+      const { error } = await supabase.from('projects').update(payload).eq('id', editingId)
+      if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
+      setProjects(prev => prev.map(p => p.id === editingId ? { ...p, ...payload } : p))
     } else {
       const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('projects').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+      const { error } = await supabase.from('projects').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+      if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
+      load()
     }
     setSaving(false)
     setShowForm(false)
     setEditingId(null)
     setForm(EMPTY_FORM)
-    load()
   }
 
   const deleteProject = async (id: string) => {
-    await supabase.from('projects').delete().eq('id', id)
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    if (error) { console.error(error); alert('Chyba při mazání: ' + error.message); return }
+    setProjects(prev => prev.filter(p => p.id !== id))
     setDeleteConfirm(null)
     setSelected(null)
-    load()
   }
 
   const sendToReview = async (id: string) => {

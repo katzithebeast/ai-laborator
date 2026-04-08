@@ -87,23 +87,27 @@ function UseCasesContent() {
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     }
     if (editingId) {
-      await supabase.from('use_cases').update(payload).eq('id', editingId)
+      const { error } = await supabase.from('use_cases').update(payload).eq('id', editingId)
+      if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
+      setUsecases(prev => prev.map(u => u.id === editingId ? { ...u, ...payload } : u))
     } else {
       const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('use_cases').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+      const { error } = await supabase.from('use_cases').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+      if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
+      load()
     }
     setSaving(false)
     setShowForm(false)
     setEditingId(null)
     setForm(EMPTY_FORM)
-    load()
   }
 
   const deleteUseCase = async (id: string) => {
-    await supabase.from('use_cases').delete().eq('id', id)
+    const { error } = await supabase.from('use_cases').delete().eq('id', id)
+    if (error) { console.error(error); alert('Chyba při mazání: ' + error.message); return }
+    setUsecases(prev => prev.filter(u => u.id !== id))
     setDeleteConfirm(null)
     setSelected(null)
-    load()
   }
 
   const sendToReview = async (id: string) => {
