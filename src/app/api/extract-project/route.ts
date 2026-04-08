@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       max_tokens: 2000,
       system: `Z konverzace extrahuj zpětnou analýzu projektu. Vrať POUZE validní JSON, bez markdown backticks:
 {
-  "title": "Název projektu",
+  "title": "Název projektu nebo 'Projekt: hlavní téma' — konkrétní, nikdy generický",
   "description": "1–2 věty shrnutí",
   "client": "Klient nebo interní nebo null",
   "team": "Tým nebo null",

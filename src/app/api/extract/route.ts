@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
       max_tokens: 2000,
       system: `Z konverzace extrahuj use case. Vrať POUZE validní JSON, bez markdown backticks:
 {
-  "title": "Krátký výstižný název use case",
+  "title": "Název nástroje - hlavní use case (např. 'Notion AI - automatizace dokumentace'). Nikdy ne generický název.",
   "tool_name": "Název nástroje nebo null",
   "team": "Tým nebo oddělení nebo null",
   "description": "1–2 věty shrnující use case",

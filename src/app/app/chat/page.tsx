@@ -41,6 +41,8 @@ function ChatPageInner() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [toast, setToast] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
@@ -133,6 +135,7 @@ function ChatPageInner() {
     setLoading(true)
 
     let currentSessionId = sessionId
+    let isNewSession = false
     if (!currentSessionId) {
       const { data: { user } } = await supabase.auth.getUser()
       const title = (userText || attachment?.name || 'Chat').slice(0, 50)
@@ -141,7 +144,7 @@ function ChatPageInner() {
         .insert({ user_id: user?.id, title, messages: next })
         .select('id')
         .single()
-      if (data) { currentSessionId = data.id; setSessionId(data.id); loadSessions() }
+      if (data) { currentSessionId = data.id; setSessionId(data.id); isNewSession = true; loadSessions() }
     }
 
     try {
@@ -159,12 +162,35 @@ function ChatPageInner() {
           .eq('id', currentSessionId)
         loadSessions()
       }
+      // Po první AI odpovědi vygeneruj chytrý název session
+      if (isNewSession && currentSessionId) {
+        fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...apiMessages,
+              { role: 'assistant', content: data.content },
+            ],
+            mode: 'title',
+          }),
+        }).then(r => r.json()).then(({ content }) => {
+          if (content) {
+            const smartTitle = content.trim().replace(/['"]/g, '').slice(0, 60)
+            supabase.from('chat_sessions')
+              .update({ title: smartTitle })
+              .eq('id', currentSessionId!)
+              .then(() => loadSessions())
+          }
+        }).catch(() => {/* noop */})
+      }
     } catch {
       setMessages([...next, { role: 'assistant', content: '⚠️ Chyba AI. Zkontroluj API klíč na Vercelu.' }])
     } finally { setLoading(false) }
   }
 
   const save = async () => {
+    if (saving || saved) return
+    setSaving(true)
     try {
       const isProject = mode === 'project'
       const res = await fetch(isProject ? '/api/extract-project' : '/api/extract', {
@@ -182,9 +208,14 @@ function ChatPageInner() {
         chat_history: messages,
       })
       setSaved(true)
-      showToast(isProject ? 'Projekt uložen jako draft ✓' : 'Use case uložen jako draft ✓')
-      setTimeout(() => router.push(isProject ? '/app/projects' : '/app/usecases'), 1200)
-    } catch { showToast('Chyba při ukládání') }
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+      setTimeout(() => router.push(isProject ? '/app/projects' : '/app/usecases'), 1500)
+    } catch {
+      showToast('Chyba při ukládání')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const showToast = (msg: string) => {
@@ -399,11 +430,18 @@ function ChatPageInner() {
                   onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
                   onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
                 >📥 Z inboxu</button>
-                {messages.length > 2 && !saved && (
-                  <button onClick={save} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(224,32,32,0.6)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = '#e02020')}
-                    onMouseLeave={e => (e.currentTarget.style.color = 'rgba(224,32,32,0.6)')}
-                  >💾 {mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}</button>
+                {messages.length > 2 && (
+                  <button onClick={save} disabled={saving || saved} style={{
+                    background: 'none', border: 'none', fontFamily: 'inherit', padding: 0, transition: 'color 0.12s',
+                    cursor: saving || saved ? 'default' : 'pointer',
+                    color: saved ? '#22c55e' : saving ? 'var(--text3)' : 'rgba(224,32,32,0.6)',
+                    fontSize: 11,
+                  }}
+                    onMouseEnter={e => { if (!saving && !saved) e.currentTarget.style.color = '#e02020' }}
+                    onMouseLeave={e => { if (!saving && !saved) e.currentTarget.style.color = 'rgba(224,32,32,0.6)' }}
+                  >
+                    {saved ? '✓ Uloženo' : saving ? '⟳ Ukládám…' : `💾 ${mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}`}
+                  </button>
                 )}
               </div>
               <span style={{ fontSize: 11, color: 'var(--text3)' }}>Shift+Enter = nový řádek</span>
@@ -416,6 +454,17 @@ function ChatPageInner() {
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
         onChange={handleFile} />
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+      {saveSuccess && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#16a34a', color: '#fff', borderRadius: 10,
+          padding: '10px 20px', fontSize: 13, fontWeight: 500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 9999,
+          animation: 'slideUp 0.25s ease',
+        }}>
+          ✓ {mode === 'project' ? 'Projekt uložen jako draft' : 'Use case uložen jako draft'}
+        </div>
+      )}
     </>
   )
 }
