@@ -17,6 +17,11 @@ type DiscoveredTool = {
   tags?: string[]
 }
 
+const baseName = (name: string) =>
+  name.toLowerCase()
+    .replace(/\s*(ai|pro|plus|for teams|editor|agent|app)\s*$/gi, '')
+    .trim()
+
 function isSimilar(a: string, b: string): boolean {
   const na = a.toLowerCase().trim()
   const nb = b.toLowerCase().trim()
@@ -26,6 +31,7 @@ function isSimilar(a: string, b: string): boolean {
     Math.abs(na.length - nb.length) < 3 &&
     na.replace(/\s/g, '') === nb.replace(/\s/g, '')
   ) return true
+  if (baseName(a) === baseName(b)) return true
   return false
 }
 
