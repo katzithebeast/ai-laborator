@@ -56,8 +56,10 @@ export default function ProjectsPage() {
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<Project | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const load = () => {
     supabase.from('projects').select('*').order('created_at', { ascending: false })
@@ -69,33 +71,52 @@ export default function ProjectsPage() {
   const f = (key: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }))
 
+  const openEdit = (p: Project) => {
+    setForm({
+      title: p.title ?? '', description: p.description ?? '', client: p.client ?? '',
+      team: p.team ?? '', duration: '', tools_used: p.tools_used ?? '',
+      project_goal: p.project_goal ?? '', what_worked: p.what_worked ?? '',
+      what_failed: p.what_failed ?? '', lessons_learned: p.lessons_learned ?? '',
+      avoid_next_time: p.avoid_next_time ?? '', process_that_worked: p.process_that_worked ?? '',
+      ai_contribution: p.ai_contribution ?? '',
+      overall_rating: p.overall_rating?.toString() ?? '', would_repeat: p.would_repeat ?? '',
+    })
+    setEditingId(p.id)
+    setSelected(null)
+    setShowForm(true)
+  }
+
   const saveManual = async () => {
     if (!form.title.trim()) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('projects').insert({
-      title: form.title,
-      description: form.description || null,
-      client: form.client || null,
-      team: form.team || null,
-      duration: form.duration || null,
-      tools_used: form.tools_used || null,
-      project_goal: form.project_goal || null,
-      what_worked: form.what_worked || null,
-      what_failed: form.what_failed || null,
-      lessons_learned: form.lessons_learned || null,
-      avoid_next_time: form.avoid_next_time || null,
-      process_that_worked: form.process_that_worked || null,
+    const payload = {
+      title: form.title, description: form.description || null,
+      client: form.client || null, team: form.team || null,
+      duration: form.duration || null, tools_used: form.tools_used || null,
+      project_goal: form.project_goal || null, what_worked: form.what_worked || null,
+      what_failed: form.what_failed || null, lessons_learned: form.lessons_learned || null,
+      avoid_next_time: form.avoid_next_time || null, process_that_worked: form.process_that_worked || null,
       ai_contribution: form.ai_contribution || null,
       overall_rating: form.overall_rating ? Number(form.overall_rating) : null,
       would_repeat: form.would_repeat || null,
-      author_id: user?.id,
-      author_name: user?.email?.split('@')[0],
-      status: 'draft',
-    })
+    }
+    if (editingId) {
+      await supabase.from('projects').update(payload).eq('id', editingId)
+    } else {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('projects').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+    }
     setSaving(false)
     setShowForm(false)
+    setEditingId(null)
     setForm(EMPTY_FORM)
+    load()
+  }
+
+  const deleteProject = async (id: string) => {
+    await supabase.from('projects').delete().eq('id', id)
+    setDeleteConfirm(null)
+    setSelected(null)
     load()
   }
 
@@ -120,7 +141,7 @@ export default function ProjectsPage() {
       <div className="page-header">
         <div><h1>Projekty</h1><p>Zpětná analýza projektů kde byla použita AI.</p></div>
         <div className="page-actions">
-          <button className="btn btn-outline" onClick={() => setShowForm(true)}>+ Vyplnit ručně</button>
+          <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
           <button className="btn btn-primary" onClick={() => router.push('/app/projects/chat')}>+ Nový projekt (chat)</button>
         </div>
       </div>
@@ -155,12 +176,12 @@ export default function ProjectsPage() {
         }
       </div>
 
-      {/* RUČNÍ FORMULÁŘ */}
+      {/* FORMULÁŘ (nový i editace) */}
       {showForm && (
         <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal" style={{ width: 620 }}>
-            <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
-            <div className="modal-header"><div className="modal-title">Vyplnit projekt ručně</div></div>
+            <button className="modal-close" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>×</button>
+            <div className="modal-header"><div className="modal-title">{editingId ? 'Upravit projekt' : 'Vyplnit projekt ručně'}</div></div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -244,9 +265,9 @@ export default function ProjectsPage() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>Zrušit</button>
+              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>Zrušit</button>
               <button className="btn btn-primary" onClick={saveManual} disabled={saving || !form.title.trim()}>
-                {saving ? 'Ukládám…' : 'Uložit jako draft'}
+                {saving ? 'Ukládám…' : editingId ? 'Uložit změny' : 'Uložit jako draft'}
               </button>
             </div>
           </div>
@@ -305,13 +326,30 @@ export default function ProjectsPage() {
               {selected.overall_rating && <span className="tag">⭐ {selected.overall_rating}/10</span>}
               {selected.would_repeat && <span className={`tag ${selected.would_repeat === 'ano' ? 'tag-green' : selected.would_repeat === 'ne' ? 'tag-red' : 'tag-amber'}`}>Zopakovat: {selected.would_repeat}</span>}
             </div>
-            <Field label="Zopakoval/a bys přístup?" value={selected.would_repeat} />
 
             <div className="modal-footer">
+              <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
+              <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
               {selected.status === 'draft' && (
                 <button className="btn btn-primary" onClick={() => sendToReview(selected.id)}>→ Poslat do review</button>
               )}
               <button className="btn btn-ghost" onClick={() => setSelected(null)}>Zavřít</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POTVRZENÍ SMAZÁNÍ */}
+      {deleteConfirm && (
+        <div className="modal-bg open" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Smazat projekt?</div>
+              <div className="modal-subtitle">Tato akce je nevratná.</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setDeleteConfirm(null)}>Zrušit</button>
+              <button className="btn btn-danger" onClick={() => deleteProject(deleteConfirm)}>Smazat</button>
             </div>
           </div>
         </div>

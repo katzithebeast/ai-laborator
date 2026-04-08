@@ -36,7 +36,7 @@ export default function Dashboard() {
             { label: 'Noví kandidáti', value: stats.inbox, sub: 'v inboxu', href: '/app/inbox' },
             { label: 'Claimnuté nástroje', value: stats.claimed, sub: 'aktivní', href: '/app/claimboard' },
             { label: 'Čeká na kontrolu', value: stats.review, sub: 'fronta', href: '/app/review' },
-            { label: 'Publikované use cases', value: stats.published, sub: 'v knihovně', href: '/app/usecases' },
+            { label: 'Publikované use cases', value: stats.published, sub: 'v knihovně', href: '/app/usecases?filter=published' },
             { label: 'Projekty', value: stats.projects, sub: 'zdokumentováno', href: '/app/projects' },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ cursor:'pointer' }} onClick={() => router.push(s.href)}>

@@ -1,5 +1,6 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase, type UseCase } from '@/lib/supabase'
 
 const EMPTY_FORM = {
@@ -29,13 +30,18 @@ function Field({ label, value }: { label: string; value?: string | number | null
   )
 }
 
-export default function UseCasesPage() {
+function UseCasesContent() {
+  const searchParams = useSearchParams()
+  const filterParam = searchParams.get('filter')
+
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<UseCase | null>(null)
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const load = () => {
     supabase.from('use_cases').select('*').order('created_at', { ascending: false })
@@ -47,40 +53,56 @@ export default function UseCasesPage() {
   const f = (key: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }))
 
+  const openEdit = (u: UseCase) => {
+    const uc = u as any
+    setForm({
+      title: u.title ?? '', tool_name: u.tool_name ?? '', team: u.team ?? '', description: u.description ?? '',
+      purpose: uc.purpose ?? '', similar_tools: uc.similar_tools ?? '', best_for_roles: uc.best_for_roles ?? '',
+      time_saved: uc.time_saved ?? '', aha_moment: uc.aha_moment ?? '',
+      onboarding_score: uc.onboarding_score?.toString() ?? '', ui_intuitive: uc.ui_intuitive ?? '',
+      output_quality: uc.output_quality ?? '', hallucinates: uc.hallucinates ?? '',
+      weaknesses: uc.weaknesses ?? '', security_risks: uc.security_risks ?? '', limitations: uc.limitations ?? '',
+      recommended: uc.recommended ?? '', rating: uc.rating?.toString() ?? '', pricing: uc.pricing ?? '',
+      effort: u.effort ?? '', impact: u.impact ?? '', tags: u.tags?.join(', ') ?? '',
+    })
+    setEditingId(u.id)
+    setSelected(null)
+    setShowForm(true)
+  }
+
   const saveManual = async () => {
     if (!form.title.trim()) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    await supabase.from('use_cases').insert({
-      title: form.title,
-      tool_name: form.tool_name || null,
-      team: form.team || null,
-      description: form.description || null,
-      purpose: form.purpose || null,
-      similar_tools: form.similar_tools || null,
-      best_for_roles: form.best_for_roles || null,
-      time_saved: form.time_saved || null,
-      aha_moment: form.aha_moment || null,
+    const payload = {
+      title: form.title, tool_name: form.tool_name || null, team: form.team || null,
+      description: form.description || null, purpose: form.purpose || null,
+      similar_tools: form.similar_tools || null, best_for_roles: form.best_for_roles || null,
+      time_saved: form.time_saved || null, aha_moment: form.aha_moment || null,
       onboarding_score: form.onboarding_score ? Number(form.onboarding_score) : null,
-      ui_intuitive: form.ui_intuitive || null,
-      output_quality: form.output_quality || null,
-      hallucinates: form.hallucinates || null,
-      weaknesses: form.weaknesses || null,
-      security_risks: form.security_risks || null,
-      limitations: form.limitations || null,
-      recommended: form.recommended || null,
-      rating: form.rating ? Number(form.rating) : null,
-      pricing: form.pricing || null,
-      effort: form.effort || null,
-      impact: form.impact || null,
+      ui_intuitive: form.ui_intuitive || null, output_quality: form.output_quality || null,
+      hallucinates: form.hallucinates || null, weaknesses: form.weaknesses || null,
+      security_risks: form.security_risks || null, limitations: form.limitations || null,
+      recommended: form.recommended || null, rating: form.rating ? Number(form.rating) : null,
+      pricing: form.pricing || null, effort: form.effort || null, impact: form.impact || null,
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-      author_id: user?.id,
-      author_name: user?.email?.split('@')[0],
-      status: 'draft',
-    })
+    }
+    if (editingId) {
+      await supabase.from('use_cases').update(payload).eq('id', editingId)
+    } else {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('use_cases').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
+    }
     setSaving(false)
     setShowForm(false)
+    setEditingId(null)
     setForm(EMPTY_FORM)
+    load()
+  }
+
+  const deleteUseCase = async (id: string) => {
+    await supabase.from('use_cases').delete().eq('id', id)
+    setDeleteConfirm(null)
+    setSelected(null)
     load()
   }
 
@@ -90,11 +112,12 @@ export default function UseCasesPage() {
     setSelected(null)
   }
 
-  const filtered = usecases.filter(u =>
-    !q || u.title?.toLowerCase().includes(q.toLowerCase()) ||
-    u.tool_name?.toLowerCase().includes(q.toLowerCase()) ||
-    u.team?.toLowerCase().includes(q.toLowerCase())
-  )
+  const filtered = usecases.filter(u => {
+    if (filterParam === 'published' && u.status !== 'published') return false
+    return !q || u.title?.toLowerCase().includes(q.toLowerCase()) ||
+      u.tool_name?.toLowerCase().includes(q.toLowerCase()) ||
+      u.team?.toLowerCase().includes(q.toLowerCase())
+  })
 
   const statusTag: Record<string, string> = {
     draft: '', review: 'tag-amber', published: 'tag-green', archived: ''
@@ -103,9 +126,15 @@ export default function UseCasesPage() {
   return (
     <>
       <div className="page-header">
-        <div><h1>Use casy</h1><p>Knihovna use casů. Drafty pošli do review a publikuj.</p></div>
+        <div>
+          <h1>Use casy</h1>
+          <p>{filterParam === 'published' ? 'Publikované use casy.' : 'Knihovna use casů. Drafty pošli do review a publikuj.'}</p>
+        </div>
         <div className="page-actions">
-          <button className="btn btn-outline" onClick={() => setShowForm(true)}>+ Vyplnit ručně</button>
+          {filterParam === 'published' && (
+            <a href="/app/usecases" className="btn btn-ghost btn-sm">← Vše</a>
+          )}
+          <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
           <button className="btn btn-primary" onClick={() => window.location.href = '/app/chat'}>+ Nový use case</button>
         </div>
       </div>
@@ -143,12 +172,12 @@ export default function UseCasesPage() {
         }
       </div>
 
-      {/* RUČNÍ FORMULÁŘ */}
+      {/* FORMULÁŘ (nový i editace) */}
       {showForm && (
         <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal" style={{ width: 620 }}>
-            <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
-            <div className="modal-header"><div className="modal-title">Vyplnit use case ručně</div></div>
+            <button className="modal-close" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>×</button>
+            <div className="modal-header"><div className="modal-title">{editingId ? 'Upravit use case' : 'Vyplnit use case ručně'}</div></div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
@@ -301,9 +330,9 @@ export default function UseCasesPage() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setForm(EMPTY_FORM) }}>Zrušit</button>
+              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>Zrušit</button>
               <button className="btn btn-primary" onClick={saveManual} disabled={saving || !form.title.trim()}>
-                {saving ? 'Ukládám…' : 'Uložit jako draft'}
+                {saving ? 'Ukládám…' : editingId ? 'Uložit změny' : 'Uložit jako draft'}
               </button>
             </div>
           </div>
@@ -367,6 +396,8 @@ export default function UseCasesPage() {
             </div>
 
             <div className="modal-footer">
+              <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
+              <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
               {selected.status === 'draft' && (
                 <button className="btn btn-primary" onClick={() => sendToReview(selected.id)}>→ Poslat do review</button>
               )}
@@ -375,6 +406,26 @@ export default function UseCasesPage() {
           </div>
         </div>
       )}
+
+      {/* POTVRZENÍ SMAZÁNÍ */}
+      {deleteConfirm && (
+        <div className="modal-bg open" onClick={() => setDeleteConfirm(null)}>
+          <div className="modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Smazat use case?</div>
+              <div className="modal-subtitle">Tato akce je nevratná.</div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-ghost" onClick={() => setDeleteConfirm(null)}>Zrušit</button>
+              <button className="btn btn-danger" onClick={() => deleteUseCase(deleteConfirm)}>Smazat</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
+}
+
+export default function UseCasesPage() {
+  return <Suspense><UseCasesContent /></Suspense>
 }

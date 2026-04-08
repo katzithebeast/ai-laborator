@@ -4,6 +4,7 @@ import { supabase, type Tool } from '@/lib/supabase'
 
 export default function InboxPage() {
   const [tools, setTools] = useState<Tool[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [loading, setLoading] = useState(false)
   const [discovering, setDiscovering] = useState(false)
@@ -24,7 +25,10 @@ export default function InboxPage() {
     await fetchTools()
   }
 
-  useEffect(() => { load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    load()
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id ?? null))
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const claim = async (id: string) => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -124,7 +128,9 @@ export default function InboxPage() {
               </div>
               <div className="tool-actions">
                 {t.status === 'claimed'
-                  ? <button className="btn btn-outline btn-sm" onClick={() => unclaim(t.id)}>Unclaim</button>
+                  ? currentUserId && t.claimed_by === currentUserId
+                    ? <button className="btn btn-outline btn-sm" onClick={() => unclaim(t.id)}>Unclaim</button>
+                    : <span className="tag tag-violet">Claimed</span>
                   : <button className="btn btn-primary btn-sm" onClick={() => claim(t.id)}>Claim</button>
                 }
               </div>
