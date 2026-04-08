@@ -47,6 +47,7 @@ function ChatPageInner() {
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [titleGenerated, setTitleGenerated] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -71,6 +72,7 @@ function ChatPageInner() {
     setInput('')
     setAttachment(null)
     setMode('chat')
+    setTitleGenerated(false)
   }
 
   const openSession = (s: Session) => {
@@ -78,6 +80,7 @@ function ChatPageInner() {
     setSessionId(s.id)
     setSaved(false)
     setAttachment(null)
+    setTitleGenerated(true) // existující session — název už byl vygenerován
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,15 +165,13 @@ function ChatPageInner() {
           .eq('id', currentSessionId)
         loadSessions()
       }
-      // Po první AI odpovědi vygeneruj chytrý název session
-      if (isNewSession && currentSessionId) {
+      // Vygeneruj název po 4. zprávě (kdy AI zná téma), jen jednou
+      if (currentSessionId && withReply.length >= 4 && !titleGenerated) {
+        setTitleGenerated(true)
         fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: [
-              ...apiMessages,
-              { role: 'assistant', content: data.content },
-            ],
+            messages: withReply.map(m => ({ role: m.role, content: m.content })),
             mode: 'title',
           }),
         }).then(r => r.json()).then(({ content }) => {
@@ -290,7 +291,7 @@ function ChatPageInner() {
               <div style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', paddingTop: 20 }}>Žádné chaty zatím</div>
             )}
             {sessions.map(s => (
-              <button key={s.id} onClick={() => openSession(s)} style={{
+              <button key={s.id} onClick={() => openSession(s)} title={s.title || 'Chat'} style={{
                 display: 'block', width: '100%', textAlign: 'left',
                 padding: '8px 10px', borderRadius: 8, border: 'none',
                 background: sessionId === s.id ? 'var(--surface3)' : 'transparent',
@@ -299,7 +300,7 @@ function ChatPageInner() {
                 onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'var(--surface3)' : 'transparent' }}
               >
-                <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', transition: 'color 0.1s' }}>
+                <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200, transition: 'color 0.1s' }}>
                   {s.title || 'Chat'}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
