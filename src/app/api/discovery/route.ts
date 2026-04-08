@@ -42,23 +42,21 @@ export async function POST() {
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      system: 'Vrať POUZE validní JSON array se 3 objekty, bez jakéhokoliv textu okolo, bez markdown backticks. Žádný úvod, žádné vysvětlení.',
+      max_tokens: 2000,
+      system: 'Return ONLY a valid JSON array, no markdown, no explanation, no intro text.',
       messages: [{
         role: 'user',
-        content: `Navrhni přesně 3 AI nástroje — každý přesně z jedné z těchto kategorií (v tomto pořadí):
-1. ${pickedCategories[0]}
-2. ${pickedCategories[1]}
-3. ${pickedCategories[2]}
+        content: `Find 10 NEW, NICHE, LESSER-KNOWN AI tools released or significantly updated in 2024-2025.
+Focus on these categories (pick variety): ${pickedCategories.join(', ')}, and any other niche B2B category.
 
-PŘÍSNÁ PRAVIDLA:
-- Každý nástroj musí být od JINÉHO vendora
-- ZAKÁZANÍ vendoři (tyto firmy už máme): ${existingVendors}
-- ZAKÁZANÉ nástroje (přesně tyto už máme): ${existingNames}
-- ZAKÁZÁNO: OpenAI, Google, Microsoft, Anthropic, Adobe, Notion, Slack, Zoom a jejich produkty
-- Hledej MÉNĚ ZNÁMÉ a SPECIALIZOVANÉ nástroje, ne mainstream
+DO NOT suggest these well-known tools: Claude, ChatGPT, GPT-4, Gemini, Copilot, Notion, Cursor, Perplexity, Runway, NotebookLM, Midjourney, DALL-E, Stable Diffusion, Slack, Zoom, HubSpot, Salesforce.
+DO NOT suggest tools from these vendors (already in our database): ${existingVendors}
+DO NOT suggest these specific tools (already in database): ${existingNames}
 
-Vrať POUZE JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
+Focus on: new startups, specialized niche tools, recent product launches, tools with under 100k users.
+Each tool must be from a DIFFERENT vendor and DIFFERENT category.
+
+Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
       }],
     })
 
@@ -73,12 +71,13 @@ Vrať POUZE JSON array: [{"name":"...","vendor":"...","website_url":"...","descr
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const isDuplicate = existing?.some(e =>
-        normalize(e.name) === normalize(tool.name) ||
-        (tool.vendor && e.vendor && e.vendor.toLowerCase().trim() === tool.vendor.toLowerCase().trim())
-      )
+      const { data: existingTool } = await supabase
+        .from('tools')
+        .select('id')
+        .ilike('name', tool.name)
+        .single()
 
-      if (isDuplicate) continue
+      if (existingTool) continue
 
       console.log('Ukládám nástroj:', tool.name)
       await supabase.from('tools').insert({

@@ -150,14 +150,9 @@ export default function InboxPage() {
   }
 
   const scoreTag = (score: number) => score >= 70 ? 'tag-amber' : score >= 50 ? 'tag-green' : ''
-  const newIds = new Set(
-    [...tools]
-      .filter(t => t.source === 'discovery')
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 3)
-      .map(t => t.id)
-  )
-  const isNew = (t: Tool) => newIds.has(t.id)
+  const isNew = (t: Tool) =>
+    t.is_new === true ||
+    (new Date().getTime() - new Date(t.created_at).getTime()) < 6 * 60 * 60 * 1000
 
   return (
     <>
