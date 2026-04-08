@@ -35,9 +35,8 @@ function pickRandom<T>(arr: T[], n: number): T[] {
 
 export async function POST() {
   try {
-    const { data: existing } = await supabase.from('tools').select('name, vendor')
-    const existingNames = (existing ?? []).map(e => e.name).join(', ')
-    const existingVendors = Array.from(new Set((existing ?? []).map(e => e.vendor).filter(Boolean))).join(', ')
+    const { data: existingTools } = await supabase.from('tools').select('name')
+    const existingNames = existingTools?.map(t => t.name) || []
     const pickedCategories = pickRandom(ALL_CATEGORIES, 3)
 
     const response = await client.messages.create({
@@ -46,15 +45,11 @@ export async function POST() {
       system: 'Return ONLY a valid JSON array, no markdown, no explanation, no intro text.',
       messages: [{
         role: 'user',
-        content: `Find 10 NEW, NICHE, LESSER-KNOWN AI tools released or significantly updated in 2024-2025.
-Focus on these categories (pick variety): ${pickedCategories.join(', ')}, and any other niche B2B category.
-
-DO NOT suggest these well-known tools: Claude, ChatGPT, GPT-4, Gemini, Copilot, Notion, Cursor, Perplexity, Runway, NotebookLM, Midjourney, DALL-E, Stable Diffusion, Slack, Zoom, HubSpot, Salesforce.
-DO NOT suggest tools from these vendors (already in our database): ${existingVendors}
-DO NOT suggest these specific tools (already in database): ${existingNames}
-
-Focus on: new startups, specialized niche tools, recent product launches, tools with under 100k users.
-Each tool must be from a DIFFERENT vendor and DIFFERENT category.
+        content: `Today is ${new Date().toISOString().split('T')[0]}.
+We already have these tools in our database: ${existingNames.join(', ')}.
+Find 10 NEW AI tools from 2024-2026 that are NOT in the list above.
+Cover diverse categories: ${pickedCategories.join(', ')}, audio, video, code, design, data, productivity, research, etc.
+Return only tools we don't have yet. Each from a different vendor.
 
 Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
       }],
@@ -71,13 +66,10 @@ Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","descr
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const { data: existingTool } = await supabase
-        .from('tools')
-        .select('id')
-        .ilike('name', tool.name)
-        .single()
-
-      if (existingTool) continue
+      const alreadyExists = existingNames.some(n =>
+        n.toLowerCase().trim() === tool.name.toLowerCase().trim()
+      )
+      if (alreadyExists) continue
 
       console.log('Ukládám nástroj:', tool.name)
       await supabase.from('tools').insert({
