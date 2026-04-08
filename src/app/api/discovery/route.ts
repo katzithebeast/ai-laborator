@@ -23,19 +23,21 @@ const normalize = (n: string) =>
 export async function POST() {
   try {
     const { data: existing } = await supabase.from('tools').select('name, vendor')
-    const existingNames = existing?.map(e => e.name).join(', ') || ''
+    // Limit to 50 names to keep prompt size manageable
+    const existingNames = (existing ?? []).slice(0, 50).map(e => e.name).join(', ')
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1500,
-      system: 'Vrať POUZE validní JSON array, bez jakéhokoliv textu okolo, bez markdown backticks.',
+      system: 'Vrať POUZE validní JSON array se 3 objekty, bez jakéhokoliv textu okolo, bez markdown backticks. Žádný úvod, žádné vysvětlení.',
       messages: [{
         role: 'user',
-        content: `Navrhni přesně 3 AI nástroje které JEŠTĚ NEJSOU běžně známé nebo jsou velmi nové (vydané v roce 2024-2025).
-Vyber z RŮZNÝCH kategorií - například: úprava obrázků/videa, generování textu, správa dat, generování kódu, marketing, účetnictví/fakturace, HR/školení, plánování, vývoj aplikací, zákaznická podpora, SEO, design, prezentace, překlad, právní dokumenty atd.
-Každý nástroj musí být od jiného vendora a jiné kategorie.
-Tyto nástroje už máme, NENAVRHUJ je znovu: ${existingNames}
-Vrať POUZE JSON array se 3 objekty: [{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]`,
+        content: `Navrhni přesně 3 AI nástroje pro firmy. Každý musí být od JINÉHO vendora, z JINÉ kategorie.
+POVINNÉ kategorie z tohoto seznamu (vyber 3 různé): video/obraz, analýza dat, zákaznická podpora, HR/školení, účetnictví, právní dokumenty, SEO, design, překlad, projektové řízení, generování kódu, marketing.
+ZAKÁZÁNO navrhnout: ChatGPT, Claude, Gemini, Copilot, Midjourney, DALL-E, Stable Diffusion, Notion, Slack, Zoom, nebo jakoukoliv variantu těchto nástrojů.
+ZAKÁZÁNO navrhnout nástroje z tohoto seznamu (PŘESNĚ TYTO UŽ MÁME): ${existingNames}
+Navrhni pouze méně známé nebo specializované nástroje.
+Vrať POUZE JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
       }],
     })
 

@@ -128,13 +128,15 @@ export default function InboxPage() {
         return
       }
 
+      console.log('Mažu duplicity:', toDelete.length, 'IDs:', toDelete)
       const { error } = await supabase
         .from('tools')
         .delete()
         .in('id', toDelete)
 
+      console.log('Delete result error:', error)
       if (error) {
-        alert('Chyba: ' + error.message)
+        alert('Chyba při mazání: ' + error.message + '\n\nPravděpodobně chybí RLS DELETE policy. Spusť v Supabase:\nCREATE POLICY "delete tools" ON tools FOR DELETE TO authenticated USING (true);')
         return
       }
 
@@ -148,6 +150,7 @@ export default function InboxPage() {
   }
 
   const scoreTag = (score: number) => score >= 70 ? 'tag-amber' : score >= 50 ? 'tag-green' : ''
+  const isNew = (t: Tool) => t.is_new === true || (Date.now() - new Date(t.created_at).getTime() < 48 * 60 * 60 * 1000 && t.source === 'discovery')
 
   return (
     <>
@@ -176,11 +179,11 @@ export default function InboxPage() {
               t.description?.toLowerCase().includes(q.toLowerCase()) ||
               t.tags?.some(tag => tag.toLowerCase().includes(q.toLowerCase()))
             ).map(t => (
-            <div key={t.id} className="tool-card" style={{ borderLeft: t.is_new ? '3px solid #22c55e' : 'none' }}>
+            <div key={t.id} className="tool-card" style={{ borderLeft: isNew(t) ? '3px solid #22c55e' : 'none' }}>
               <div style={{ flex:1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="tool-name">{t.name}</div>
-                  {t.is_new && <span className="tag tag-green">✨ Nové</span>}
+                  {isNew(t) && <span className="tag tag-green">✨ Nové</span>}
                 </div>
                 <div className="tool-vendor">
                   {t.vendor}{t.website_url && <> · <a href={t.website_url} target="_blank" rel="noopener">otevřít ↗</a></>}
