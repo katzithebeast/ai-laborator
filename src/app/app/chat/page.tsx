@@ -49,6 +49,9 @@ function ChatPageInner() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [titleGenerated, setTitleGenerated] = useState(false)
   const [tooltip, setTooltip] = useState<{ text: string; y: number } | null>(null)
+  const [hoveredHistoryId, setHoveredHistoryId] = useState<string | null>(null)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -64,6 +67,14 @@ function ChatPageInner() {
       .select('id, title, created_at, updated_at, messages')
       .order('updated_at', { ascending: false })
     setSessions((data ?? []) as Session[])
+  }
+
+  const renameSession = async (id: string, title: string) => {
+    const trimmed = title.trim()
+    if (!trimmed) { setEditingSessionId(null); return }
+    await supabase.from('chat_sessions').update({ title: trimmed }).eq('id', id)
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: trimmed } : s))
+    setEditingSessionId(null)
   }
 
   const newChat = () => {
@@ -295,29 +306,60 @@ function ChatPageInner() {
               <div style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', paddingTop: 20 }}>Žádné chaty zatím</div>
             )}
             {sessions.map(s => (
-              <button key={s.id} onClick={() => openSession(s)} style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '8px 10px', borderRadius: 8, border: 'none',
-                background: sessionId === s.id ? 'var(--surface3)' : 'transparent',
-                cursor: 'pointer', transition: 'background 0.1s',
-              }}
+              <div key={s.id} style={{ position: 'relative', borderRadius: 8 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'
-                  if ((s.title?.length ?? 0) > 28) {
+                  setHoveredHistoryId(s.id)
+                  if ((s.title?.length ?? 0) > 28 && editingSessionId !== s.id) {
                     const rect = e.currentTarget.getBoundingClientRect()
                     setTooltip({ text: s.title, y: rect.top })
                   }
                 }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'var(--surface3)' : 'transparent'
-                  setTooltip(null)
-                }}
+                onMouseLeave={() => { setHoveredHistoryId(null); setTooltip(null) }}
               >
-                <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200, transition: 'color 0.1s' }}>
-                  {s.title || 'Chat'}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
-              </button>
+                {editingSessionId === s.id ? (
+                  <input
+                    autoFocus
+                    value={editingTitle}
+                    onChange={e => setEditingTitle(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') renameSession(s.id, editingTitle)
+                      if (e.key === 'Escape') setEditingSessionId(null)
+                    }}
+                    onBlur={() => renameSession(s.id, editingTitle)}
+                    style={{
+                      width: '100%', padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--surface)', border: '1px solid var(--border2)',
+                      color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                ) : (
+                  <button onClick={() => openSession(s)} style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '8px 10px', paddingRight: 30, borderRadius: 8, border: 'none',
+                    background: sessionId === s.id ? 'var(--surface3)' : hoveredHistoryId === s.id ? 'var(--surface)' : 'transparent',
+                    cursor: 'pointer', transition: 'background 0.1s',
+                  }}>
+                    <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 190, transition: 'color 0.1s' }}>
+                      {s.title || 'Chat'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
+                  </button>
+                )}
+                {hoveredHistoryId === s.id && editingSessionId !== s.id && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingTitle(s.title || ''); setEditingSessionId(s.id); setTooltip(null) }}
+                    style={{
+                      position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text3)', fontSize: 13, padding: '2px 4px',
+                      lineHeight: 1, borderRadius: 4, transition: 'color 0.1s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
+                  >✎</button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -435,26 +477,33 @@ function ChatPageInner() {
 
             {/* Spodní lišta */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingLeft: 2, paddingRight: 2 }}>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
-                >📎 Přiložit soubor</button>
-                <button onClick={() => router.push('/app/inbox')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text2)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
-                >📥 Z inboxu</button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[
+                  { label: '⊕ Přiložit', onClick: () => fileInputRef.current?.click(), disabled: loading },
+                  { label: 'Z inboxu', onClick: () => router.push('/app/inbox'), disabled: false },
+                ].map(btn => (
+                  <button key={btn.label} onClick={btn.onClick} disabled={btn.disabled} style={{
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.4)',
+                    fontSize: 12, fontFamily: 'inherit', padding: '4px 10px',
+                    transition: 'color 0.12s, background 0.12s, border-color 0.12s',
+                  }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                  >{btn.label}</button>
+                ))}
                 {messages.length > 2 && (
                   <button onClick={save} disabled={saving || saved} style={{
-                    background: 'none', border: 'none', fontFamily: 'inherit', padding: 0, transition: 'color 0.12s',
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, fontFamily: 'inherit', padding: '4px 10px',
+                    fontSize: 12, transition: 'color 0.12s, background 0.12s, border-color 0.12s',
                     cursor: saving || saved ? 'default' : 'pointer',
-                    color: saved ? '#22c55e' : saving ? 'var(--text3)' : 'rgba(224,32,32,0.6)',
-                    fontSize: 11,
+                    color: saved ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.4)',
                   }}
-                    onMouseEnter={e => { if (!saving && !saved) e.currentTarget.style.color = '#e02020' }}
-                    onMouseLeave={e => { if (!saving && !saved) e.currentTarget.style.color = 'rgba(224,32,32,0.6)' }}
+                    onMouseEnter={e => { if (!saving && !saved) { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' } }}
+                    onMouseLeave={e => { if (!saving && !saved) { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' } }}
                   >
-                    {saved ? '✓ Uloženo' : saving ? '⟳ Ukládám…' : `💾 ${mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}`}
+                    {saved ? '✓ Uloženo' : saving ? '⟳ Ukládám…' : mode === 'project' ? 'Uložit projekt' : 'Uložit use case'}
                   </button>
                 )}
               </div>
