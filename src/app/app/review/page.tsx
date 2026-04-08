@@ -43,6 +43,53 @@ export default function ReviewPage() {
     load()
   }
 
+  const exportToHTML = (u: UseCase) => {
+    const uc = u as any
+    const row = (label: string, val?: string | number | null) => val ? `<h2>${label}</h2><p>${String(val).replace(/\n/g, '<br>')}</p>` : ''
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${u.title}</title><style>
+      body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1916;}
+      h1{color:#e02020;border-bottom:2px solid #e02020;padding-bottom:10px;}
+      h2{color:#333;margin-top:24px;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+      p{line-height:1.6;color:#555;margin:0 0 8px;}
+      .meta{color:#888;font-size:13px;margin-bottom:24px;}
+      .tag{display:inline-block;background:#f0f0f0;padding:2px 8px;border-radius:10px;font-size:12px;margin:2px;}
+      .score{font-size:28px;font-weight:bold;color:#e02020;}
+      @media print{body{margin:20px;}}
+    </style></head><body>
+      <h1>${u.title}</h1>
+      <div class="meta">
+        ${u.tool_name ? `<strong>Nástroj:</strong> ${u.tool_name} &nbsp;` : ''}
+        ${u.team ? `<strong>Tým:</strong> ${u.team} &nbsp;` : ''}
+        ${u.author_name ? `<strong>Autor:</strong> ${u.author_name} &nbsp;` : ''}
+        <strong>Status:</strong> ke schválení &nbsp;
+        <strong>Datum:</strong> ${new Date(u.created_at).toLocaleDateString('cs-CZ')}
+      </div>
+      ${u.description ? `<p><em>${u.description}</em></p>` : ''}
+      ${row('Účel nástroje', uc.purpose)}
+      ${row('Podobné nástroje', uc.similar_tools)}
+      ${row('Nejlepší pro', uc.best_for_roles)}
+      ${row('Úspora času', uc.time_saved)}
+      ${row('Kvalita výstupů', uc.output_quality)}
+      ${row('Slabiny', uc.weaknesses)}
+      ${row('Bezpečnostní rizika', uc.security_risks)}
+      ${row('Limity nástroje', uc.limitations)}
+      <h2>Finální verdikt</h2>
+      <p>
+        ${uc.recommended ? `<span class="tag">Doporučení: ${uc.recommended}</span> ` : ''}
+        ${uc.rating ? `<span class="score">${uc.rating}/10</span> ` : ''}
+        ${u.effort ? `<span class="tag">Náročnost: ${u.effort}</span> ` : ''}
+        ${u.impact ? `<span class="tag">Dopad: ${u.impact}</span>` : ''}
+      </p>
+    </body></html>`
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${u.title.replace(/[^a-z0-9]/gi, '_')}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <>
       <div className="page-header">
@@ -131,6 +178,7 @@ export default function ReviewPage() {
 
             <div className="modal-footer">
               <button className="btn btn-danger btn-sm" onClick={() => reject(selected.id)}>← Vrátit do draftu</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ Stáhnout</button>
               <button className="btn btn-ghost" onClick={() => setSelected(null)}>Zavřít</button>
               <button className="btn btn-accent" onClick={() => publish(selected.id)}>✓ Publikovat</button>
             </div>
