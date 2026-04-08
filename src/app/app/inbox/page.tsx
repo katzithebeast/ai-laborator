@@ -99,10 +99,36 @@ export default function InboxPage() {
   const deduplicate = async () => {
     setDeduplicating(true)
     try {
-      const res = await fetch('/api/deduplicate', { method: 'POST' })
-      const { deleted } = await res.json()
-      if (deleted > 0) fetchTools()
-      alert(`Hotovo — smazáno ${deleted} duplicit.`)
+      const { data: allTools } = await supabase
+        .from('tools')
+        .select('*')
+        .order('created_at', { ascending: true })
+
+      if (!allTools) return
+
+      const seen = new Map()
+      const toDelete: string[] = []
+
+      allTools.forEach(tool => {
+        const key = tool.name.toLowerCase().trim()
+        if (seen.has(key)) {
+          toDelete.push(tool.id)
+        } else {
+          seen.set(key, tool.id)
+        }
+      })
+
+      if (toDelete.length === 0) {
+        alert('Žádné duplicity nenalezeny')
+        return
+      }
+
+      for (const id of toDelete) {
+        await supabase.from('tools').delete().eq('id', id)
+      }
+
+      alert(`Smazáno ${toDelete.length} duplicit`)
+      load()
     } catch (e) {
       console.error('Deduplicate failed', e)
     } finally {
