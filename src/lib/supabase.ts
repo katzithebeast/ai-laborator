@@ -26,7 +26,7 @@ export type Tool = {
 export type UseCase = {
   id: string
   title: string
-  description: string
+  description: string | null
   tool_id: string | null
   tool_name: string | null
   team: string | null
@@ -44,6 +44,21 @@ export type UseCase = {
   chat_history: Message[]
   created_at: string
   updated_at: string
+  purpose: string | null
+  similar_tools: string | null
+  best_for_roles: string | null
+  time_saved: string | null
+  aha_moment: string | null
+  output_quality: string | null
+  hallucinates: string | null
+  weaknesses: string | null
+  security_risks: string | null
+  limitations: string | null
+  recommended: string | null
+  pricing: string | null
+  ui_intuitive: string | null
+  onboarding_score: number | null
+  rating: number | null
 }
 
 export type Message = {

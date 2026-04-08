@@ -89,7 +89,7 @@ function UseCasesContent() {
     if (editingId) {
       const { error } = await supabase.from('use_cases').update(payload).eq('id', editingId)
       if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
-      setUsecases(prev => prev.map(u => u.id === editingId ? { ...u, ...payload } : u))
+      setUsecases(prev => prev.map(u => u.id === editingId ? { ...u, ...payload } as UseCase : u))
     } else {
       const { data: { user } } = await supabase.auth.getUser()
       const { error } = await supabase.from('use_cases').insert({ ...payload, author_id: user?.id, author_name: user?.email?.split('@')[0], status: 'draft' })
