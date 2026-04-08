@@ -106,11 +106,18 @@ export default function InboxPage() {
 
       if (!allTools) return
 
-      const seen = new Map()
+      const normalize = (name: string) =>
+        name.toLowerCase()
+          .trim()
+          .replace(/\s*(ai|pro|plus|alpha|beta|gen-\d+|v\d+|ml|for teams)\s*/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+
+      const seen = new Map<string, string>()
       const toDelete: string[] = []
 
       allTools.forEach(tool => {
-        const key = tool.name.toLowerCase().trim()
+        const key = normalize(tool.name)
         if (seen.has(key)) {
           toDelete.push(tool.id)
         } else {
@@ -123,8 +130,14 @@ export default function InboxPage() {
         return
       }
 
-      for (const id of toDelete) {
-        await supabase.from('tools').delete().eq('id', id)
+      const { error } = await supabase
+        .from('tools')
+        .delete()
+        .in('id', toDelete)
+
+      if (error) {
+        alert('Chyba: ' + error.message)
+        return
       }
 
       alert(`Smazáno ${toDelete.length} duplicit`)
