@@ -48,7 +48,7 @@ function ChatPageInner() {
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [titleGenerated, setTitleGenerated] = useState(false)
-  const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
+  const [tooltip, setTooltip] = useState<{ text: string; y: number } | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -172,7 +172,10 @@ function ChatPageInner() {
         fetch('/api/chat', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: withReply.map(m => ({ role: m.role, content: m.content })),
+            messages: [
+              ...withReply.slice(0, 6).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: 'Vygeneruj název této konverzace.' },
+            ],
             mode: 'title',
           }),
         }).then(r => r.json()).then(({ content }) => {
@@ -292,33 +295,29 @@ function ChatPageInner() {
               <div style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', paddingTop: 20 }}>Žádné chaty zatím</div>
             )}
             {sessions.map(s => (
-              <div key={s.id} style={{ position: 'relative' }}>
-                <button onClick={() => openSession(s)} style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '8px 10px', borderRadius: 8, border: 'none',
-                  background: sessionId === s.id ? 'var(--surface3)' : 'transparent',
-                  cursor: 'pointer', transition: 'background 0.1s',
+              <button key={s.id} onClick={() => openSession(s)} style={{
+                display: 'block', width: '100%', textAlign: 'left',
+                padding: '8px 10px', borderRadius: 8, border: 'none',
+                background: sessionId === s.id ? 'var(--surface3)' : 'transparent',
+                cursor: 'pointer', transition: 'background 0.1s',
+              }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'
+                  if ((s.title?.length ?? 0) > 28) {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setTooltip({ text: s.title, y: rect.top })
+                  }
                 }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface)'; setHoveredSessionId(s.id) }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'var(--surface3)' : 'transparent'; setHoveredSessionId(null) }}
-                >
-                  <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200, transition: 'color 0.1s' }}>
-                    {s.title || 'Chat'}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
-                </button>
-                {hoveredSessionId === s.id && (s.title?.length ?? 0) > 28 && (
-                  <div style={{
-                    position: 'absolute', left: '100%', top: 0, marginLeft: 8,
-                    background: 'rgba(20,20,20,0.97)', border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#fff',
-                    maxWidth: 200, wordWrap: 'break-word', whiteSpace: 'normal',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.35)', zIndex: 1000, pointerEvents: 'none',
-                  }}>
-                    {s.title}
-                  </div>
-                )}
-              </div>
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLButtonElement).style.background = sessionId === s.id ? 'var(--surface3)' : 'transparent'
+                  setTooltip(null)
+                }}
+              >
+                <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200, transition: 'color 0.1s' }}>
+                  {s.title || 'Chat'}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
+              </button>
             ))}
           </div>
         )}
@@ -469,6 +468,17 @@ function ChatPageInner() {
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
         onChange={handleFile} />
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+      {tooltip && (
+        <div style={{
+          position: 'fixed', left: 268, top: tooltip.y,
+          background: 'rgba(20,20,20,0.97)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#fff',
+          maxWidth: 220, wordWrap: 'break-word', whiteSpace: 'normal',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35)', zIndex: 9999, pointerEvents: 'none',
+        }}>
+          {tooltip.text}
+        </div>
+      )}
       {saveSuccess && (
         <div style={{
           position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
