@@ -37,7 +37,7 @@ export async function POST() {
   try {
     const { data: existing } = await supabase.from('tools').select('name, vendor')
     const existingNames = (existing ?? []).map(e => e.name).join(', ')
-    const existingVendors = [...new Set((existing ?? []).map(e => e.vendor).filter(Boolean))].join(', ')
+    const existingVendors = Array.from(new Set((existing ?? []).map(e => e.vendor).filter(Boolean))).join(', ')
     const pickedCategories = pickRandom(ALL_CATEGORIES, 3)
 
     const response = await client.messages.create({
