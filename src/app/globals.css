@@ -909,6 +909,9 @@ body {
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+  position: sticky;
+  bottom: 0;
+  background: var(--bg2);
 }
 
 /* ── WORKFLOW GRID ── */
