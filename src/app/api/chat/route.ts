@@ -75,16 +75,26 @@ Po projití všech oblastí shrň projekt v markdown:
 export async function POST(req: NextRequest) {
   try {
     const { messages, mode } = await req.json()
+
+    if (mode === 'title') {
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 50,
+        system: 'Vygeneruj krátký název konverzace — max 4 slova, podle nástroje nebo tématu. Vrať POUZE název bez uvozovek.',
+        messages,
+      })
+      const text = response.content[0].type === 'text' ? response.content[0].text.trim() : 'Nová konverzace'
+      return NextResponse.json({ content: text })
+    }
+
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: mode === 'title' ? 30 : 1500,
+      max_tokens: 1500,
       system: mode === 'project'
         ? SYSTEM_PROJECT
         : mode === 'interview'
           ? SYSTEM_USECASE + '\n\nJsi v INTERVIEW módu — buď strukturovanější, projdi všechny aspekty.'
-          : mode === 'title'
-            ? 'Z konverzace urči název max 5 slov — podle nástroje nebo tématu. Vrať POUZE název, bez uvozovek, bez dalšího textu.'
-            : SYSTEM_USECASE,
+          : SYSTEM_USECASE,
       messages,
     })
     const text = response.content[0].type === 'text' ? response.content[0].text : ''
