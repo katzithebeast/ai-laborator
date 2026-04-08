@@ -116,10 +116,10 @@ function UseCasesContent() {
     setSelected(null)
   }
 
-  const exportToHTML = (u: UseCase) => {
+  const generateHTML = (u: UseCase) => {
     const uc = u as any
     const row = (label: string, val?: string | number | null) => val ? `<h2>${label}</h2><p>${String(val).replace(/\n/g, '<br>')}</p>` : ''
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${u.title}</title><style>
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${u.title}</title><style>
       body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1916;}
       h1{color:#e02020;border-bottom:2px solid #e02020;padding-bottom:10px;}
       h2{color:#333;margin-top:24px;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
@@ -160,11 +160,70 @@ function UseCasesContent() {
       </p>
       ${u.tags?.length ? `<p>${u.tags.map(t => `<span class="tag">${t}</span>`).join(' ')}</p>` : ''}
     </body></html>`
-    const blob = new Blob([html], { type: 'text/html' })
+  }
+
+  const exportToHTML = (u: UseCase) => {
+    const blob = new Blob([generateHTML(u)], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `${u.title.replace(/[^a-z0-9]/gi, '_')}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportToPDF = (u: UseCase) => {
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    document.body.appendChild(iframe)
+    iframe.contentDocument!.write(generateHTML(u))
+    iframe.contentDocument!.close()
+    iframe.contentWindow!.focus()
+    iframe.contentWindow!.print()
+    setTimeout(() => document.body.removeChild(iframe), 1000)
+  }
+
+  const exportToWord = (u: UseCase) => {
+    const uc = u as any
+    const row = (label: string, val?: string | number | null) => val ? `<h2>${label}</h2><p>${String(val).replace(/\n/g, '<br>')}</p>` : ''
+    const content = `
+      <h1>${u.title}</h1>
+      <p class="meta">
+        ${u.tool_name ? `<strong>Nástroj:</strong> ${u.tool_name} &nbsp;` : ''}
+        ${u.team ? `<strong>Tým:</strong> ${u.team} &nbsp;` : ''}
+        ${u.author_name ? `<strong>Autor:</strong> ${u.author_name} &nbsp;` : ''}
+        <strong>Status:</strong> ${u.status} &nbsp;
+        <strong>Datum:</strong> ${new Date(u.created_at).toLocaleDateString('cs-CZ')}
+      </p>
+      ${u.description ? `<p><em>${u.description}</em></p>` : ''}
+      ${row('Účel nástroje', uc.purpose)}
+      ${row('Podobné nástroje', uc.similar_tools)}
+      ${row('Cena', uc.pricing)}
+      ${row('Nejlepší pro', uc.best_for_roles)}
+      ${row('Úspora času', uc.time_saved)}
+      ${row('Aha! moment', uc.aha_moment)}
+      ${row('Kvalita výstupů', uc.output_quality)}
+      ${row('Slabiny', uc.weaknesses)}
+      ${row('Bezpečnostní rizika', uc.security_risks)}
+      ${row('Limity nástroje', uc.limitations)}
+      <h2>Finální verdikt</h2>
+      <p>
+        ${uc.recommended ? `Doporučení: ${uc.recommended} ` : ''}
+        ${uc.rating ? `Hodnocení: ${uc.rating}/10 ` : ''}
+        ${u.effort ? `Náročnost: ${u.effort} ` : ''}
+        ${u.impact ? `Dopad: ${u.impact}` : ''}
+      </p>`
+    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='UTF-8'>
+      <style>body{font-family:Arial,sans-serif;}h1{color:#e02020;}h2{font-size:12pt;text-transform:uppercase;}.meta{color:#888;font-size:11pt;}</style>
+      </head><body>${content}</body></html>`
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${u.title.replace(/[^a-z0-9]/gi, '_')}.doc`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -455,7 +514,9 @@ function UseCasesContent() {
             <div className="modal-footer">
               <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
               <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ Stáhnout</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
               {selected.status === 'draft' && (
                 <button className="btn btn-primary" onClick={() => sendToReview(selected.id)}>→ Poslat do review</button>
               )}

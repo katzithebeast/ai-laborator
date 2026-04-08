@@ -130,9 +130,9 @@ export default function ProjectsPage() {
     setSelected(null)
   }
 
-  const exportToHTML = (p: Project) => {
+  const generateHTML = (p: Project) => {
     const row = (label: string, val?: string | number | null) => val ? `<h2>${label}</h2><p>${String(val).replace(/\n/g, '<br>')}</p>` : ''
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${p.title}</title><style>
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${p.title}</title><style>
       body{font-family:Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1916;}
       h1{color:#e02020;border-bottom:2px solid #e02020;padding-bottom:10px;}
       h2{color:#333;margin-top:24px;font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
@@ -166,11 +166,65 @@ export default function ProjectsPage() {
         ${p.would_repeat ? `<span class="tag">Zopakovat: ${p.would_repeat}</span>` : ''}
       </p>
     </body></html>`
-    const blob = new Blob([html], { type: 'text/html' })
+  }
+
+  const exportToHTML = (p: Project) => {
+    const blob = new Blob([generateHTML(p)], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `${p.title.replace(/[^a-z0-9]/gi, '_')}.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportToPDF = (p: Project) => {
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    document.body.appendChild(iframe)
+    iframe.contentDocument!.write(generateHTML(p))
+    iframe.contentDocument!.close()
+    iframe.contentWindow!.focus()
+    iframe.contentWindow!.print()
+    setTimeout(() => document.body.removeChild(iframe), 1000)
+  }
+
+  const exportToWord = (p: Project) => {
+    const row = (label: string, val?: string | number | null) => val ? `<h2>${label}</h2><p>${String(val).replace(/\n/g, '<br>')}</p>` : ''
+    const content = `
+      <h1>${p.title}</h1>
+      <p class="meta">
+        ${p.client ? `<strong>Klient:</strong> ${p.client} &nbsp;` : ''}
+        ${p.team ? `<strong>Tým:</strong> ${p.team} &nbsp;` : ''}
+        ${p.author_name ? `<strong>Autor:</strong> ${p.author_name} &nbsp;` : ''}
+        <strong>Status:</strong> ${p.status} &nbsp;
+        <strong>Datum:</strong> ${new Date(p.created_at).toLocaleDateString('cs-CZ')}
+      </p>
+      ${p.description ? `<p><em>${p.description}</em></p>` : ''}
+      ${row('AI nástroje', p.tools_used)}
+      ${row('Cíl projektu', p.project_goal)}
+      ${row('Přínos AI', p.ai_contribution)}
+      ${row('Co fungovalo skvěle', p.what_worked)}
+      ${row('Největší výzvy', p.what_failed)}
+      ${row('Osvědčený postup', p.process_that_worked)}
+      ${row('Lessons learned', p.lessons_learned)}
+      ${row('Příště se vyvarovat', p.avoid_next_time)}
+      <h2>Finální verdikt</h2>
+      <p>
+        ${p.overall_rating ? `Hodnocení: ${p.overall_rating}/10 ` : ''}
+        ${p.would_repeat ? `Zopakovat: ${p.would_repeat}` : ''}
+      </p>`
+    const html = `<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+      <head><meta charset='UTF-8'>
+      <style>body{font-family:Arial,sans-serif;}h1{color:#e02020;}h2{font-size:12pt;text-transform:uppercase;}.meta{color:#888;font-size:11pt;}</style>
+      </head><body>${content}</body></html>`
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${p.title.replace(/[^a-z0-9]/gi, '_')}.doc`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -379,7 +433,9 @@ export default function ProjectsPage() {
             <div className="modal-footer">
               <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
               <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ Stáhnout</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
               {selected.status === 'draft' && (
                 <button className="btn btn-primary" onClick={() => sendToReview(selected.id)}>→ Poslat do review</button>
               )}
