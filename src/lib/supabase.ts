@@ -21,6 +21,7 @@ export type Tool = {
   claimed_by: string | null
   claimed_at: string | null
   created_at: string
+  is_new?: boolean
 }
 
 export type UseCase = {
