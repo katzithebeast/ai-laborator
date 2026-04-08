@@ -50,8 +50,9 @@ function ChatPageInner() {
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [titleGenerated, setTitleGenerated] = useState(false)
-  const [tooltip, setTooltip] = useState<{ text: string; y: number } | null>(null)
   const [hoveredHistoryId, setHoveredHistoryId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
@@ -340,12 +341,13 @@ function ChatPageInner() {
               <div key={s.id} style={{ position: 'relative', borderRadius: 8 }}
                 onMouseEnter={e => {
                   setHoveredHistoryId(s.id)
-                  if ((s.title?.length ?? 0) > 28 && editingSessionId !== s.id) {
+                  if (editingSessionId !== s.id) {
                     const rect = e.currentTarget.getBoundingClientRect()
-                    setTooltip({ text: s.title, y: rect.top })
+                    setHoveredId(s.id)
+                    setTooltipPos({ x: rect.right + 8, y: rect.top })
                   }
                 }}
-                onMouseLeave={() => { setHoveredHistoryId(null); setTooltip(null) }}
+                onMouseLeave={() => { setHoveredHistoryId(null); setHoveredId(null) }}
               >
                 {editingSessionId === s.id ? (
                   <input
@@ -379,7 +381,7 @@ function ChatPageInner() {
                 )}
                 {hoveredHistoryId === s.id && editingSessionId !== s.id && (
                   <button
-                    onClick={e => { e.stopPropagation(); setEditingTitle(s.title || ''); setEditingSessionId(s.id); setTooltip(null) }}
+                    onClick={e => { e.stopPropagation(); setEditingTitle(s.title || ''); setEditingSessionId(s.id); setHoveredId(null) }}
                     style={{
                       position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
                       background: 'none', border: 'none', cursor: 'pointer',
@@ -548,15 +550,15 @@ function ChatPageInner() {
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
         onChange={handleFile} />
       <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
-      {tooltip && (
+      {hoveredId && (
         <div style={{
-          position: 'fixed', left: 268, top: tooltip.y,
+          position: 'fixed', left: tooltipPos.x, top: tooltipPos.y,
           background: 'rgba(20,20,20,0.97)', border: '1px solid rgba(255,255,255,0.1)',
           borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#fff',
-          maxWidth: 220, wordWrap: 'break-word', whiteSpace: 'normal',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.35)', zIndex: 9999, pointerEvents: 'none',
+          maxWidth: 220, wordWrap: 'break-word', lineHeight: 1.4,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)', zIndex: 9999, pointerEvents: 'none',
         }}>
-          {tooltip.text}
+          {sessions.find(s => s.id === hoveredId)?.title}
         </div>
       )}
       {saveSuccess && (
