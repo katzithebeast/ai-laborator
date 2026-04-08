@@ -20,11 +20,25 @@ type DiscoveredTool = {
 const normalize = (n: string) =>
   n.toLowerCase().replace(/\b(ai|pro|plus|alpha|beta|gen|ml)\b/g, '').replace(/\s+/g, ' ').trim()
 
+const ALL_CATEGORIES = [
+  'právní dokumenty a smlouvy', 'fakturace a účetnictví', 'HR a nábor',
+  'překlad a lokalizace', 'zákaznická podpora a chatboty', 'SEO a obsah',
+  'analýza dat a reporty', 'plánování a projektové řízení', 'e-mail marketing',
+  'sociální sítě a scheduling', 'prezentace a vizualizace', 'transkripce schůzek',
+  'kybernetická bezpečnost', 'správa znalostní báze', 'code review a testování',
+  'generování obrázků pro e-commerce', 'video editace a titulky', 'správa smluv',
+]
+
+function pickRandom<T>(arr: T[], n: number): T[] {
+  return [...arr].sort(() => Math.random() - 0.5).slice(0, n)
+}
+
 export async function POST() {
   try {
     const { data: existing } = await supabase.from('tools').select('name, vendor')
-    // Limit to 50 names to keep prompt size manageable
-    const existingNames = (existing ?? []).slice(0, 50).map(e => e.name).join(', ')
+    const existingNames = (existing ?? []).map(e => e.name).join(', ')
+    const existingVendors = [...new Set((existing ?? []).map(e => e.vendor).filter(Boolean))].join(', ')
+    const pickedCategories = pickRandom(ALL_CATEGORIES, 3)
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
@@ -32,11 +46,18 @@ export async function POST() {
       system: 'Vrať POUZE validní JSON array se 3 objekty, bez jakéhokoliv textu okolo, bez markdown backticks. Žádný úvod, žádné vysvětlení.',
       messages: [{
         role: 'user',
-        content: `Navrhni přesně 3 AI nástroje pro firmy. Každý musí být od JINÉHO vendora, z JINÉ kategorie.
-POVINNÉ kategorie z tohoto seznamu (vyber 3 různé): video/obraz, analýza dat, zákaznická podpora, HR/školení, účetnictví, právní dokumenty, SEO, design, překlad, projektové řízení, generování kódu, marketing.
-ZAKÁZÁNO navrhnout: ChatGPT, Claude, Gemini, Copilot, Midjourney, DALL-E, Stable Diffusion, Notion, Slack, Zoom, nebo jakoukoliv variantu těchto nástrojů.
-ZAKÁZÁNO navrhnout nástroje z tohoto seznamu (PŘESNĚ TYTO UŽ MÁME): ${existingNames}
-Navrhni pouze méně známé nebo specializované nástroje.
+        content: `Navrhni přesně 3 AI nástroje — každý přesně z jedné z těchto kategorií (v tomto pořadí):
+1. ${pickedCategories[0]}
+2. ${pickedCategories[1]}
+3. ${pickedCategories[2]}
+
+PŘÍSNÁ PRAVIDLA:
+- Každý nástroj musí být od JINÉHO vendora
+- ZAKÁZANÍ vendoři (tyto firmy už máme): ${existingVendors}
+- ZAKÁZANÉ nástroje (přesně tyto už máme): ${existingNames}
+- ZAKÁZÁNO: OpenAI, Google, Microsoft, Anthropic, Adobe, Notion, Slack, Zoom a jejich produkty
+- Hledej MÉNĚ ZNÁMÉ a SPECIALIZOVANÉ nástroje, ne mainstream
+
 Vrať POUZE JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
       }],
     })
@@ -52,7 +73,10 @@ Vrať POUZE JSON array: [{"name":"...","vendor":"...","website_url":"...","descr
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const isDuplicate = existing?.some(e => normalize(e.name) === normalize(tool.name))
+      const isDuplicate = existing?.some(e =>
+        normalize(e.name) === normalize(tool.name) ||
+        (tool.vendor && e.vendor && e.vendor.toLowerCase().trim() === tool.vendor.toLowerCase().trim())
+      )
 
       if (isDuplicate) continue
 
