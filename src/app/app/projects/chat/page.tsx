@@ -28,7 +28,8 @@ export default function ProjectChatPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [toast, setToast] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -97,105 +98,233 @@ export default function ProjectChatPage() {
   }
 
   const save = async () => {
+    if (saving || saved) return
+    setSaving(true)
     try {
       const res = await fetch('/api/extract-project', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })
       })
       const data = await res.json()
-      const { data: { user } } = await supabase.auth.getUser()
-      await supabase.from('projects').insert({
-        ...data,
-        author_id: user?.id,
-        author_name: user?.email?.split('@')[0],
-        status: 'draft',
-        chat_history: messages,
-      })
+      console.log('Extracted project data:', data)
+
+      if (data.error) throw new Error(data.error)
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      console.log('User:', user, userError)
+
+      if (!user) throw new Error('Nejsi přihlášen')
+
+      const { data: inserted, error: insertError } = await supabase
+        .from('projects')
+        .insert({
+          ...data,
+          author_id: user.id,
+          author_name: user.email?.split('@')[0] || 'Unknown',
+          status: 'draft',
+          chat_history: messages,
+        })
+        .select()
+        .single()
+
+      console.log('Insert result:', inserted, insertError)
+
+      if (insertError) throw insertError
+
       setSaved(true)
-      showToast('Projekt uložen jako draft ✓')
-      setTimeout(() => router.push('/app/projects'), 1200)
-    } catch { showToast('Chyba při ukládání') }
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3000)
+      setTimeout(() => router.push('/app/projects'), 1500)
+    } catch (e) {
+      console.error('Save error:', e)
+      alert('Chyba při ukládání: ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
-  const showToast = (msg: string) => {
-    setToast(msg)
-    setTimeout(() => setToast(''), 3000)
+  const newAnalysis = () => {
+    setMessages([])
+    setSaved(false)
+    setInput('')
+    setAttachment(null)
   }
 
   return (
     <>
-      <div className="page-header" style={{ paddingBottom: 14 }}>
-        <div><h1>Nový projekt</h1><p>Zpětná analýza projektu kde byla použita AI.</p></div>
-        <div className="page-actions">
-          <button className="btn btn-ghost btn-sm" onClick={() => router.push('/app/projects')}>← Zpět</button>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', position: 'relative' }}>
+
+        {/* TOP BAR */}
+        <div style={{
+          height: 48, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0 20px', flexShrink: 0, borderBottom: '1px solid var(--border)',
+        }}>
+          <button
+            onClick={() => router.push('/app/projects')}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: 'var(--text3)', fontSize: 13, fontFamily: 'inherit',
+              padding: '4px 0', transition: 'color 0.12s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
+          >← Projekty</button>
+          <button
+            onClick={newAnalysis}
+            style={{
+              background: 'transparent', border: '1px solid var(--border2)',
+              borderRadius: 20, color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
+              padding: '5px 16px', cursor: 'pointer', transition: 'border-color 0.12s, color 0.12s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text3)'; e.currentTarget.style.color = 'var(--text)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
+          >Nová analýza</button>
         </div>
-      </div>
-      <div className="page-body" style={{ paddingTop: 12, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', minHeight: 500 }}>
-        <div className="chat-wrap">
-          <div className="chat-header">
-            <span>model: <strong>claude-sonnet-4-20250514</strong> · režim: analýza projektu</span>
-          </div>
-          <div className="chat-messages">
-            {messages.length === 0 ? (
-              <div className="chat-empty">
-                <span className="chat-empty-icon">📁</span>
-                <strong style={{ color: 'var(--text)', fontSize: 15 }}>Zpětná analýza projektu</strong>
-                <span>AI se tě postupně zeptá na projekt kde jsi použil/a AI — co fungovalo, co ne, a co příště.</span>
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => send('Chci zdokumentovat projekt kde jsme použili AI.')}>📁 Spustit analýzu projektu</button>
-                </div>
+
+        {/* ZPRÁVY */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column' }}>
+          {messages.length === 0 ? (
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              justifyContent: 'center', flex: 1, textAlign: 'center',
+              padding: '80px 20px 40px', gap: 0,
+            }}>
+              <style>{`@keyframes pulse{0%,100%{opacity:0.85;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}`}</style>
+              <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ marginBottom: 32, animation: 'pulse 3s ease-in-out infinite' }}>
+                <path d="M8,20 L8,65 L72,65 L72,28 L38,28 L32,20 Z" fill="#e02020" opacity="0.8"/>
+                <path d="M8,32 L72,32 L72,65 L8,65 Z" fill="#e02020"/>
+                <path d="M8,32 L72,32 L72,65 L8,65 Z" fill="rgba(255,255,255,0.1)"/>
+              </svg>
+              <div style={{ color: 'var(--text)', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>
+                Zpětná analýza projektu
               </div>
-            ) : (
-              <>
-                {messages.map((m, i) => (
-                  <div key={i} className={`msg ${m.role}`}>
-                    <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
-                    <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
-                  </div>
-                ))}
-                {loading && (
-                  <div className="msg assistant">
-                    <div className="msg-avatar">λ</div>
-                    <div className="typing-dot"><span /><span /><span /></div>
-                  </div>
-                )}
-                <div ref={endRef} />
-              </>
-            )}
-          </div>
-          <div className="chat-input-area">
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 36 }}>
+                AI se tě postupně zeptá na projekt kde jsi použil/a AI.
+              </div>
+              <button
+                onClick={() => send('Chci zdokumentovat projekt kde jsme použili AI.')}
+                style={{
+                  background: 'transparent', border: '1px solid var(--border2)',
+                  borderRadius: 20, color: 'var(--text2)', fontSize: 13, padding: '8px 18px',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = 'var(--text)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
+              >Spustit analýzu projektu</button>
+            </div>
+          ) : (
+            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 680, width: '100%', margin: '0 auto' }}>
+              {messages.map((m, i) => (
+                <div key={i} className={`msg ${m.role}`}>
+                  <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
+                  <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
+                </div>
+              ))}
+              {loading && (
+                <div className="msg assistant">
+                  <div className="msg-avatar">λ</div>
+                  <div className="typing-dot"><span /><span /><span /></div>
+                </div>
+              )}
+              <div ref={endRef} />
+            </div>
+          )}
+        </div>
+
+        {/* INPUT AREA */}
+        <div style={{ padding: '16px 20px 20px', flexShrink: 0 }}>
+          <div style={{ maxWidth: 640, margin: '0 auto' }}>
             {attachment && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
                 {attachment.kind === 'image' ? (
-                  <img src={attachment.preview} alt={attachment.name} style={{ height: 48, width: 48, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={attachment.preview} alt={attachment.name} style={{ height: 36, width: 36, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
                 ) : (
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>📄</span>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>📄</span>
                 )}
-                <span style={{ fontSize: 12.5, color: 'var(--text2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
-                <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 16, lineHeight: 1, padding: '0 2px' }}>×</button>
+                <span style={{ fontSize: 12, color: 'var(--text2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
+                <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 15, lineHeight: 1, padding: '0 2px' }}>×</button>
               </div>
             )}
-            <textarea className="chat-textarea"
-              placeholder="Napiš zprávu… (Enter = odeslat, Shift+Enter = nový řádek)"
-              value={input} onChange={e => setInput(e.target.value)}
-              disabled={loading}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }} />
-            <div className="chat-toolbar">
-              <div className="chat-toolbar-left">
-                <button className="btn btn-ghost btn-xs" onClick={() => fileInputRef.current?.click()} disabled={loading}>📎 Přiložit soubor</button>
-              </div>
-              {messages.length > 2 && !saved && (
-                <button className="btn btn-accent btn-sm" onClick={save}>💾 Uložit projekt</button>
-              )}
-              <button className="btn btn-primary btn-sm" onClick={() => send()} disabled={loading || (!input.trim() && !attachment)}>Odeslat ↵</button>
+
+            <div style={{ position: 'relative' }}>
+              <textarea
+                placeholder="Napiš zprávu…"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                disabled={loading}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                style={{
+                  width: '100%', height: 48, borderRadius: 12,
+                  background: 'var(--surface)', border: '1px solid var(--border2)',
+                  padding: '12px 50px 12px 16px', color: 'var(--text)',
+                  fontSize: 14, fontFamily: 'inherit', resize: 'none', outline: 'none',
+                  lineHeight: '24px', transition: 'border-color 0.15s', overflowY: 'hidden',
+                }}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(224,32,32,0.5)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'var(--border2)')}
+              />
+              <button
+                onClick={() => send()}
+                disabled={loading || (!input.trim() && !attachment)}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  width: 32, height: 32, borderRadius: 8, background: 'var(--surface3)',
+                  border: 'none', cursor: loading || (!input.trim() && !attachment) ? 'not-allowed' : 'pointer',
+                  color: 'var(--text)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'background 0.15s', opacity: loading || (!input.trim() && !attachment) ? 0.4 : 1,
+                }}
+                onMouseEnter={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = '#e02020' }}
+                onMouseLeave={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = 'var(--surface3)' }}
+              >↑</button>
             </div>
-            <input ref={fileInputRef} type="file" style={{ display: 'none' }}
-              accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
-              onChange={handleFile} />
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingLeft: 2, paddingRight: 2 }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.4)',
+                  fontSize: 12, fontFamily: 'inherit', padding: '4px 10px',
+                  transition: 'color 0.12s, background 0.12s, border-color 0.12s',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' }}
+                >⊕ Přiložit</button>
+                {messages.length > 2 && (
+                  <button onClick={save} disabled={saving || saved} style={{
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, fontFamily: 'inherit', padding: '4px 10px',
+                    fontSize: 12, transition: 'color 0.12s, background 0.12s, border-color 0.12s',
+                    cursor: saving || saved ? 'default' : 'pointer',
+                    color: saved ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.4)',
+                  }}
+                    onMouseEnter={e => { if (!saving && !saved) { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' } }}
+                    onMouseLeave={e => { if (!saving && !saved) { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)' } }}
+                  >
+                    {saved ? '✓ Uloženo' : saving ? '⟳ Ukládám…' : 'Uložit projekt'}
+                  </button>
+                )}
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>Shift+Enter = nový řádek</span>
+            </div>
           </div>
         </div>
       </div>
-      <div className={`toast ${toast ? 'show' : ''}`}>{toast}</div>
+
+      <input ref={fileInputRef} type="file" style={{ display: 'none' }}
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+        onChange={handleFile} />
+
+      {saveSuccess && (
+        <div style={{
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: '#16a34a', color: '#fff', borderRadius: 10,
+          padding: '10px 20px', fontSize: 13, fontWeight: 500,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.25)', zIndex: 9999,
+        }}>
+          ✓ Projekt uložen jako draft
+        </div>
+      )}
     </>
   )
 }
