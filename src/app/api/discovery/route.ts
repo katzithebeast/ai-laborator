@@ -17,23 +17,7 @@ type DiscoveredTool = {
   tags?: string[]
 }
 
-const baseName = (name: string) =>
-  name.toLowerCase()
-    .replace(/\s*(ai|pro|plus|for teams|editor|agent|app)\s*$/gi, '')
-    .trim()
-
-function isSimilar(a: string, b: string): boolean {
-  const na = a.toLowerCase().trim()
-  const nb = b.toLowerCase().trim()
-  if (na === nb) return true
-  if (na.includes(nb) || nb.includes(na)) return true
-  if (
-    Math.abs(na.length - nb.length) < 3 &&
-    na.replace(/\s/g, '') === nb.replace(/\s/g, '')
-  ) return true
-  if (baseName(a) === baseName(b)) return true
-  return false
-}
+const firstWord = (name: string) => name.toLowerCase().split(/\s+/)[0]
 
 export async function POST() {
   try {
@@ -43,7 +27,7 @@ export async function POST() {
       system: 'Vrať POUZE validní JSON array, bez jakéhokoliv textu okolo, bez markdown backticks.',
       messages: [{
         role: 'user',
-        content: 'Navrhni 5 nejnovějších a nejzajímavějších AI nástrojů které stojí za vyzkoušení ve firmě. Navrhni pouze nástroje které jsou velmi nové (2024-2026), co nejaktuálnější. Každý nástroj musí mít unikátní přesný název. Pro každý vrať objekt s klíči: name (string), vendor (string), website_url (string), description (string), category (string), tags (string array).',
+        content: 'Navrhni přesně 3 zajímavé AI nástroje pro firemní použití z různých kategorií. Každý musí být jiný typ nástroje. Vrať POUZE validní JSON array se 3 objekty, bez textu okolo: [{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]',
       }],
     })
 
@@ -60,13 +44,11 @@ export async function POST() {
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const isDuplicate = existing?.some(e =>
-        isSimilar(e.name, tool.name) ||
-        (e.vendor && tool.vendor && isSimilar(e.vendor, tool.vendor) && isSimilar(e.name, tool.name))
-      )
+      const isDuplicate = existing?.some(e => firstWord(e.name) === firstWord(tool.name))
 
       if (isDuplicate) continue
 
+      console.log('Ukládám nástroj:', tool.name)
       await supabase.from('tools').insert({
         name: tool.name,
         vendor: tool.vendor ?? null,
