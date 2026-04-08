@@ -106,20 +106,22 @@ export default function InboxPage() {
 
       if (!allTools) return
 
-      const normalize = (n: string) => n.toLowerCase()
-        .replace(/\b(ai|pro|plus|alpha|beta|gen|ml|gen-\d+|v\d+)\b/gi, '')
-        .replace(/[^a-z0-9]/g, '')
-        .trim()
+      const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '').trim()
+      const isDuplicate = (a: string, b: string) => {
+        const na = normalize(a)
+        const nb = normalize(b)
+        return na === nb || na.includes(nb) || nb.includes(na)
+      }
 
-      const seen = new Map<string, string>()
+      const kept: { id: string; name: string }[] = []
       const toDelete: string[] = []
 
       allTools.forEach(tool => {
-        const key = normalize(tool.name)
-        if (seen.has(key)) {
+        const match = kept.find(k => isDuplicate(k.name, tool.name))
+        if (match) {
           toDelete.push(tool.id)
         } else {
-          seen.set(key, tool.id)
+          kept.push({ id: tool.id, name: tool.name })
         }
       })
 

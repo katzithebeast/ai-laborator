@@ -17,8 +17,12 @@ type DiscoveredTool = {
   tags?: string[]
 }
 
-const normalize = (n: string) =>
-  n.toLowerCase().replace(/\b(ai|pro|plus|alpha|beta|gen|ml)\b/g, '').replace(/\s+/g, ' ').trim()
+const normalize = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '').trim()
+const isDuplicate = (a: string, b: string) => {
+  const na = normalize(a)
+  const nb = normalize(b)
+  return na === nb || na.includes(nb) || nb.includes(na)
+}
 
 const ALL_CATEGORIES = [
   'právní dokumenty a smlouvy', 'fakturace a účetnictví', 'HR a nábor',
@@ -66,9 +70,7 @@ Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","descr
     for (const tool of discovered) {
       if (!tool.name) continue
 
-      const alreadyExists = existingNames.some(n =>
-        n.toLowerCase().trim() === tool.name.toLowerCase().trim()
-      )
+      const alreadyExists = existingNames.some(n => isDuplicate(n, tool.name))
       if (alreadyExists) continue
 
       console.log('Ukládám nástroj:', tool.name)
