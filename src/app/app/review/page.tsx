@@ -153,7 +153,10 @@ export default function ReviewPage() {
             <div key={u.id} className="review-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedUseCase(u)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3 }}>{u.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{u.title}</div>
+                    <span className="tag tag-violet">AI nástroj</span>
+                  </div>
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
                     {u.tool_name && <>{u.tool_name} · </>}{u.team && <>{u.team} · </>}autor: {u.author_name}
                   </div>
@@ -176,7 +179,10 @@ export default function ReviewPage() {
             <div key={p.id} className="review-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3 }}>{p.title}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600 }}>{p.title}</div>
+                    <span className="tag tag-amber">Projekt</span>
+                  </div>
                   <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
                     {p.client && <>{p.client} · </>}{p.team && <>{p.team} · </>}autor: {p.author_name}
                   </div>

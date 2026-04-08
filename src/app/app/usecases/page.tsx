@@ -263,7 +263,7 @@ function UseCasesContent() {
         {filtered.length === 0
           ? <div className="empty"><span className="empty-icon">📋</span>Žádné use casy. Vytvoř první v Chatu.</div>
           : filtered.map(u => (
-            <div key={u.id} className="uc-card">
+            <div key={u.id} className="uc-card" style={{ cursor: 'pointer' }} onClick={() => setSelected(u)}>
               <div style={{ flex: 1 }}>
                 <div className="uc-title">{u.title}</div>
                 <div className="uc-meta">

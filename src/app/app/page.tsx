@@ -5,18 +5,19 @@ import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
   const router = useRouter()
-  const [stats, setStats] = useState({ inbox: 0, claimed: 0, review: 0, published: 0, projects: 0 })
+  const [stats, setStats] = useState({ inbox: 0, claimed: 0, review: 0, published: 0, publishedProj: 0 })
 
   useEffect(() => {
     const load = async () => {
-      const [{ count: inbox }, { count: claimed }, { count: review }, { count: published }, { count: projectsCount }] = await Promise.all([
+      const [{ count: inbox }, { count: claimed }, { count: reviewUC }, { count: reviewProj }, { count: published }, { count: publishedProj }] = await Promise.all([
         supabase.from('tools').select('*', { count: 'exact', head: true }).eq('status', 'new'),
         supabase.from('tools').select('*', { count: 'exact', head: true }).eq('status', 'claimed'),
         supabase.from('use_cases').select('*', { count: 'exact', head: true }).eq('status', 'review'),
+        supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'review'),
         supabase.from('use_cases').select('*', { count: 'exact', head: true }).eq('status', 'published'),
-        supabase.from('projects').select('*', { count: 'exact', head: true }),
+        supabase.from('projects').select('*', { count: 'exact', head: true }).eq('status', 'published'),
       ])
-      setStats({ inbox: inbox ?? 0, claimed: claimed ?? 0, review: review ?? 0, published: published ?? 0, projects: projectsCount ?? 0 })
+      setStats({ inbox: inbox ?? 0, claimed: claimed ?? 0, review: (reviewUC ?? 0) + (reviewProj ?? 0), published: published ?? 0, publishedProj: publishedProj ?? 0 })
     }
     load()
   }, [])
@@ -35,9 +36,9 @@ export default function Dashboard() {
           {[
             { label: 'Noví kandidáti', value: stats.inbox, sub: 'v inboxu', href: '/app/inbox' },
             { label: 'Claimnuté nástroje', value: stats.claimed, sub: 'aktivní', href: '/app/claimboard' },
-            { label: 'Čeká na kontrolu', value: stats.review, sub: 'fronta', href: '/app/review' },
-            { label: 'Publikované use cases', value: stats.published, sub: 'v knihovně', href: '/app/usecases?filter=published' },
-            { label: 'Projekty', value: stats.projects, sub: 'zdokumentováno', href: '/app/projects' },
+            { label: 'Čeká na kontrolu', value: stats.review, sub: 'use casy + projekty', href: '/app/review' },
+            { label: 'Publikované use casy', value: stats.published, sub: 'v knihovně', href: '/app/usecases?filter=published' },
+            { label: 'Publikované projekty', value: stats.publishedProj, sub: 'zdokumentováno', href: '/app/projects' },
           ].map(s => (
             <div key={s.label} className="stat-card" style={{ cursor:'pointer' }} onClick={() => router.push(s.href)}>
               <div className="stat-label">{s.label}</div>

@@ -257,7 +257,7 @@ export default function ProjectsPage() {
         {filtered.length === 0
           ? <div className="empty"><span className="empty-icon">📁</span>Žádné projekty. Vytvoř první přes chat.</div>
           : filtered.map(p => (
-            <div key={p.id} className="uc-card">
+            <div key={p.id} className="uc-card" style={{ cursor: 'pointer' }} onClick={() => setSelected(p)}>
               <div style={{ flex: 1 }}>
                 <div className="uc-title">{p.title}</div>
                 <div className="uc-meta">
