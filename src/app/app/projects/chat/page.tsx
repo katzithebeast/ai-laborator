@@ -3,6 +3,14 @@ import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, type Message } from '@/lib/supabase'
 
+type Session = {
+  id: string
+  title: string
+  messages: Message[]
+  created_at: string
+  updated_at: string
+}
+
 type Attachment = {
   name: string
   kind: 'image' | 'doc'
@@ -24,17 +32,60 @@ function md(text: string) {
 
 export default function ProjectChatPage() {
   const router = useRouter()
+
   const [messages, setMessages] = useState<Message[]>([])
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessions, setSessions] = useState<Session[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [attachment, setAttachment] = useState<Attachment | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [titleGenerated, setTitleGenerated] = useState(false)
+  const [tooltip, setTooltip] = useState<{ text: string; y: number } | null>(null)
+  const [hoveredHistoryId, setHoveredHistoryId] = useState<string | null>(null)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
+  useEffect(() => { loadSessions() }, [])
+
+  const loadSessions = async () => {
+    const { data } = await supabase
+      .from('chat_sessions')
+      .select('id, title, created_at, updated_at, messages')
+      .order('updated_at', { ascending: false })
+    setSessions((data ?? []) as Session[])
+  }
+
+  const renameSession = async (id: string, title: string) => {
+    const trimmed = title.trim()
+    if (!trimmed) { setEditingSessionId(null); return }
+    await supabase.from('chat_sessions').update({ title: trimmed }).eq('id', id)
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: trimmed } : s))
+    setEditingSessionId(null)
+  }
+
+  const newAnalysis = () => {
+    setMessages([])
+    setSessionId(null)
+    setSaved(false)
+    setInput('')
+    setAttachment(null)
+    setTitleGenerated(false)
+  }
+
+  const openSession = (s: Session) => {
+    setMessages(s.messages ?? [])
+    setSessionId(s.id)
+    setSaved(false)
+    setAttachment(null)
+    setTitleGenerated(true)
+  }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -74,8 +125,7 @@ export default function ProjectChatPage() {
         blocks.push({ type: 'image', source: { type: 'base64', media_type: attachment.mediaType, data: attachment.data } })
         if (userText) blocks.push({ type: 'text', text: userText })
       } else {
-        const combined = `[Obsah souboru: ${attachment.name}]\n${attachment.data}${userText ? '\n\n' + userText : ''}`
-        blocks.push({ type: 'text', text: combined })
+        blocks.push({ type: 'text', text: `[Obsah souboru: ${attachment.name}]\n${attachment.data}${userText ? '\n\n' + userText : ''}` })
       }
       apiMessages.push({ role: 'user', content: blocks })
     } else {
@@ -84,6 +134,19 @@ export default function ProjectChatPage() {
 
     setAttachment(null)
     setLoading(true)
+
+    let currentSessionId = sessionId
+    if (!currentSessionId) {
+      const { data: { user } } = await supabase.auth.getUser()
+      const title = (userText || attachment?.name || 'Projekt').slice(0, 50)
+      const { data } = await supabase
+        .from('chat_sessions')
+        .insert({ user_id: user?.id, title, messages: next })
+        .select('id')
+        .single()
+      if (data) { currentSessionId = data.id; setSessionId(data.id); loadSessions() }
+    }
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -91,7 +154,34 @@ export default function ProjectChatPage() {
       })
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-      setMessages([...next, { role: 'assistant', content: data.content }])
+      const withReply: Message[] = [...next, { role: 'assistant', content: data.content }]
+      setMessages(withReply)
+      if (currentSessionId) {
+        await supabase.from('chat_sessions')
+          .update({ messages: withReply, updated_at: new Date().toISOString() })
+          .eq('id', currentSessionId)
+        loadSessions()
+      }
+      // Název po 4. zprávě, jen jednou
+      if (currentSessionId && withReply.length >= 4 && !titleGenerated) {
+        setTitleGenerated(true)
+        fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              ...withReply.slice(0, 6).map(m => ({ role: m.role, content: m.content })),
+              { role: 'user', content: 'Vygeneruj název této konverzace.' },
+            ],
+            mode: 'title',
+          }),
+        }).then(r => r.json()).then(({ content }) => {
+          if (content) {
+            const smartTitle = content.trim().replace(/['"]/g, '').slice(0, 60)
+            supabase.from('chat_sessions').update({ title: smartTitle }).eq('id', currentSessionId!)
+              .then(() => loadSessions())
+          }
+        }).catch(() => {/* noop */})
+      }
     } catch {
       setMessages([...next, { role: 'assistant', content: '⚠️ Chyba AI. Zkontroluj API klíč na Vercelu.' }])
     } finally { setLoading(false) }
@@ -107,12 +197,10 @@ export default function ProjectChatPage() {
       })
       const data = await res.json()
       console.log('Extracted project data:', data)
-
       if (data.error) throw new Error(data.error)
 
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       console.log('User:', user, userError)
-
       if (!user) throw new Error('Nejsi přihlášen')
 
       const { data: inserted, error: insertError } = await supabase
@@ -126,9 +214,7 @@ export default function ProjectChatPage() {
         })
         .select()
         .single()
-
       console.log('Insert result:', inserted, insertError)
-
       if (insertError) throw insertError
 
       setSaved(true)
@@ -143,11 +229,14 @@ export default function ProjectChatPage() {
     }
   }
 
-  const newAnalysis = () => {
-    setMessages([])
-    setSaved(false)
-    setInput('')
-    setAttachment(null)
+  const formatDate = (iso: string) => {
+    const d = new Date(iso)
+    const now = new Date()
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000)
+    if (diffDays === 0) return d.toLocaleTimeString('cs-CZ', { hour: '2-digit', minute: '2-digit' })
+    if (diffDays === 1) return 'Včera'
+    if (diffDays < 7) return d.toLocaleDateString('cs-CZ', { weekday: 'short' })
+    return d.toLocaleDateString('cs-CZ', { day: 'numeric', month: 'numeric' })
   }
 
   return (
@@ -160,54 +249,101 @@ export default function ProjectChatPage() {
           padding: '0 20px', flexShrink: 0, borderBottom: '1px solid var(--border)',
         }}>
           <button
-            onClick={() => router.push('/app/projects')}
-            style={{
-              background: 'transparent', border: 'none', cursor: 'pointer',
-              color: 'var(--text3)', fontSize: 13, fontFamily: 'inherit',
-              padding: '4px 0', transition: 'color 0.12s',
-            }}
+            onClick={() => setHistoryOpen(o => !o)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 13, fontFamily: 'inherit', padding: '4px 0', transition: 'color 0.12s' }}
             onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
             onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
-          >← Projekty</button>
+          >{historyOpen ? '‹ Historie' : 'Historie ›'}</button>
           <button
             onClick={newAnalysis}
-            style={{
-              background: 'transparent', border: '1px solid var(--border2)',
-              borderRadius: 20, color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit',
-              padding: '5px 16px', cursor: 'pointer', transition: 'border-color 0.12s, color 0.12s',
-            }}
+            style={{ background: 'transparent', border: '1px solid var(--border2)', borderRadius: 20, color: 'var(--text2)', fontSize: 13, fontFamily: 'inherit', padding: '5px 16px', cursor: 'pointer', transition: 'border-color 0.12s, color 0.12s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text3)'; e.currentTarget.style.color = 'var(--text)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
           >Nová analýza</button>
         </div>
 
+        {/* PANEL HISTORIE */}
+        {historyOpen && (
+          <div style={{
+            position: 'absolute', top: 48, left: 0, bottom: 0, width: 260,
+            background: 'var(--surface2)', borderRight: '1px solid var(--border)',
+            display: 'flex', flexDirection: 'column', padding: '12px 10px', gap: 3, zIndex: 20, overflowY: 'auto',
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 6, paddingLeft: 4 }}>
+              Historie
+            </div>
+            {sessions.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text3)', textAlign: 'center', paddingTop: 20 }}>Žádné projekty zatím</div>
+            )}
+            {sessions.map(s => (
+              <div key={s.id} style={{ position: 'relative', borderRadius: 8 }}
+                onMouseEnter={e => {
+                  setHoveredHistoryId(s.id)
+                  if ((s.title?.length ?? 0) > 28 && editingSessionId !== s.id) {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setTooltip({ text: s.title, y: rect.top })
+                  }
+                }}
+                onMouseLeave={() => { setHoveredHistoryId(null); setTooltip(null) }}
+              >
+                {editingSessionId === s.id ? (
+                  <input
+                    autoFocus
+                    value={editingTitle}
+                    onChange={e => setEditingTitle(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') renameSession(s.id, editingTitle)
+                      if (e.key === 'Escape') setEditingSessionId(null)
+                    }}
+                    onBlur={() => renameSession(s.id, editingTitle)}
+                    style={{
+                      width: '100%', padding: '8px 10px', borderRadius: 8,
+                      background: 'var(--surface)', border: '1px solid var(--border2)',
+                      color: 'var(--text)', fontSize: 13, fontFamily: 'inherit',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                ) : (
+                  <button onClick={() => openSession(s)} style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '8px 10px', paddingRight: 30, borderRadius: 8, border: 'none',
+                    background: sessionId === s.id ? 'var(--surface3)' : hoveredHistoryId === s.id ? 'var(--surface)' : 'transparent',
+                    cursor: 'pointer', transition: 'background 0.1s',
+                  }}>
+                    <div style={{ fontSize: 13, color: sessionId === s.id ? 'var(--text)' : 'var(--text2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 190 }}>
+                      {s.title || 'Projekt'}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>{formatDate(s.updated_at)}</div>
+                  </button>
+                )}
+                {hoveredHistoryId === s.id && editingSessionId !== s.id && (
+                  <button
+                    onClick={e => { e.stopPropagation(); setEditingTitle(s.title || ''); setEditingSessionId(s.id); setTooltip(null) }}
+                    style={{ position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 13, padding: '2px 4px', lineHeight: 1, borderRadius: 4, transition: 'color 0.1s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--text)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text3)')}
+                  >✎</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ZPRÁVY */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', display: 'flex', flexDirection: 'column' }}>
           {messages.length === 0 ? (
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', flex: 1, textAlign: 'center',
-              padding: '80px 20px 40px', gap: 0,
-            }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, textAlign: 'center', padding: '80px 20px 40px', gap: 0 }}>
               <style>{`@keyframes pulse{0%,100%{opacity:0.85;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}`}</style>
               <svg width="80" height="80" viewBox="0 0 80 80" fill="none" style={{ marginBottom: 32, animation: 'pulse 3s ease-in-out infinite' }}>
                 <path d="M8,20 L8,65 L72,65 L72,28 L38,28 L32,20 Z" fill="#e02020" opacity="0.8"/>
                 <path d="M8,32 L72,32 L72,65 L8,65 Z" fill="#e02020"/>
                 <path d="M8,32 L72,32 L72,65 L8,65 Z" fill="rgba(255,255,255,0.1)"/>
               </svg>
-              <div style={{ color: 'var(--text)', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>
-                Zpětná analýza projektu
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 36 }}>
-                AI se tě postupně zeptá na projekt kde jsi použil/a AI.
-              </div>
+              <div style={{ color: 'var(--text)', fontSize: 22, fontWeight: 500, marginBottom: 12 }}>Zpětná analýza projektu</div>
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 36 }}>AI se tě postupně zeptá na projekt kde jsi použil/a AI.</div>
               <button
                 onClick={() => send('Chci zdokumentovat projekt kde jsme použili AI.')}
-                style={{
-                  background: 'transparent', border: '1px solid var(--border2)',
-                  borderRadius: 20, color: 'var(--text2)', fontSize: 13, padding: '8px 18px',
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s',
-                }}
+                style={{ background: 'transparent', border: '1px solid var(--border2)', borderRadius: 20, color: 'var(--text2)', fontSize: 13, padding: '8px 18px', cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s, color 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = 'var(--text)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border2)'; e.currentTarget.style.color = 'var(--text2)' }}
               >Spustit analýzu projektu</button>
@@ -246,7 +382,6 @@ export default function ProjectChatPage() {
                 <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text3)', fontSize: 15, lineHeight: 1, padding: '0 2px' }}>×</button>
               </div>
             )}
-
             <div style={{ position: 'relative' }}>
               <textarea
                 placeholder="Napiš zprávu…"
@@ -278,13 +413,11 @@ export default function ProjectChatPage() {
                 onMouseLeave={e => { if (!loading && (input.trim() || attachment)) e.currentTarget.style.background = 'var(--surface3)' }}
               >↑</button>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, paddingLeft: 2, paddingRight: 2 }}>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button onClick={() => fileInputRef.current?.click()} disabled={loading} style={{
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 6, cursor: 'pointer', color: 'rgba(255,255,255,0.4)',
-                  fontSize: 12, fontFamily: 'inherit', padding: '4px 10px',
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6,
+                  cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: 12, fontFamily: 'inherit', padding: '4px 10px',
                   transition: 'color 0.12s, background 0.12s, border-color 0.12s',
                 }}
                   onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)' }}
@@ -292,9 +425,9 @@ export default function ProjectChatPage() {
                 >⊕ Přiložit</button>
                 {messages.length > 2 && (
                   <button onClick={save} disabled={saving || saved} style={{
-                    background: 'transparent', border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 6, fontFamily: 'inherit', padding: '4px 10px',
-                    fontSize: 12, transition: 'color 0.12s, background 0.12s, border-color 0.12s',
+                    background: 'transparent', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6,
+                    fontFamily: 'inherit', padding: '4px 10px', fontSize: 12,
+                    transition: 'color 0.12s, background 0.12s, border-color 0.12s',
                     cursor: saving || saved ? 'default' : 'pointer',
                     color: saved ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.4)',
                   }}
@@ -314,6 +447,18 @@ export default function ProjectChatPage() {
       <input ref={fileInputRef} type="file" style={{ display: 'none' }}
         accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
         onChange={handleFile} />
+
+      {tooltip && (
+        <div style={{
+          position: 'fixed', left: 268, top: tooltip.y,
+          background: 'rgba(20,20,20,0.97)', border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#fff',
+          maxWidth: 220, wordWrap: 'break-word', whiteSpace: 'normal',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35)', zIndex: 9999, pointerEvents: 'none',
+        }}>
+          {tooltip.text}
+        </div>
+      )}
 
       {saveSuccess && (
         <div style={{
