@@ -2,6 +2,27 @@
 import { useEffect, useState } from 'react'
 import { supabase, type UseCase } from '@/lib/supabase'
 
+type Project = {
+  id: string
+  title: string
+  description: string | null
+  status: string
+  client: string | null
+  team: string | null
+  tools_used: string | null
+  project_goal: string | null
+  what_worked: string | null
+  what_failed: string | null
+  lessons_learned: string | null
+  avoid_next_time: string | null
+  process_that_worked: string | null
+  ai_contribution: string | null
+  overall_rating: number | null
+  would_repeat: string | null
+  author_name: string | null
+  created_at: string
+}
+
 function Section({ title }: { title: string }) {
   return (
     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.6px', margin: '18px 0 10px', paddingBottom: 6, borderBottom: '1px solid var(--border)' }}>
@@ -22,24 +43,42 @@ function Field({ label, value }: { label: string; value?: string | number | null
 
 export default function ReviewPage() {
   const [items, setItems] = useState<UseCase[]>([])
-  const [selected, setSelected] = useState<UseCase | null>(null)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   const load = async () => {
-    const { data } = await supabase.from('use_cases').select('*').eq('status', 'review').order('updated_at', { ascending: false })
-    setItems(data ?? [])
+    const [{ data: usecases }, { data: projectsData }] = await Promise.all([
+      supabase.from('use_cases').select('*').eq('status', 'review').order('updated_at', { ascending: false }),
+      supabase.from('projects').select('*').eq('status', 'review').order('updated_at', { ascending: false }),
+    ])
+    setItems(usecases ?? [])
+    setProjects(projectsData ?? [])
   }
 
   useEffect(() => { load() }, [])
 
   const publish = async (id: string) => {
     await supabase.from('use_cases').update({ status: 'published' }).eq('id', id)
-    setSelected(null)
+    setSelectedUseCase(null)
     load()
   }
 
   const reject = async (id: string) => {
     await supabase.from('use_cases').update({ status: 'draft' }).eq('id', id)
-    setSelected(null)
+    setSelectedUseCase(null)
+    load()
+  }
+
+  const publishProject = async (id: string) => {
+    await supabase.from('projects').update({ status: 'published' }).eq('id', id)
+    setSelectedProject(null)
+    load()
+  }
+
+  const rejectProject = async (id: string) => {
+    await supabase.from('projects').update({ status: 'draft' }).eq('id', id)
+    setSelectedProject(null)
     load()
   }
 
@@ -90,28 +129,37 @@ export default function ReviewPage() {
     URL.revokeObjectURL(url)
   }
 
+  const sectionHeader = (title: string) => (
+    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 10, marginTop: 4 }}>
+      {title}
+    </div>
+  )
+
   return (
     <>
       <div className="page-header">
-        <div><h1>Kontrola</h1><p>Fronta use casů čekajících na schválení.</p></div>
+        <div><h1>Kontrola</h1><p>Fronta use casů a projektů čekajících na schválení.</p></div>
         <div className="page-actions">
           <button className="btn btn-outline" onClick={load}>⟳ Obnovit</button>
         </div>
       </div>
       <div className="page-body">
+
+        {/* USE CASES */}
+        {sectionHeader('Use casy ke kontrole')}
         {items.length === 0
-          ? <div className="card" style={{ textAlign:'center', color:'var(--text3)', fontSize:13 }}>Nikdo teď nečeká na review.</div>
+          ? <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13, marginBottom: 24 }}>Žádné use casy nečekají na review.</div>
           : items.map(u => (
-            <div key={u.id} className="review-card" style={{ cursor: 'pointer' }} onClick={() => setSelected(u)}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:16 }}>
+            <div key={u.id} className="review-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedUseCase(u)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
                 <div>
-                  <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{u.title}</div>
-                  <div style={{ fontSize:12, color:'var(--text2)', marginBottom:8 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3 }}>{u.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
                     {u.tool_name && <>{u.tool_name} · </>}{u.team && <>{u.team} · </>}autor: {u.author_name}
                   </div>
-                  {u.description && <div style={{ fontSize:13, color:'var(--text2)', lineHeight:1.5 }}>{u.description}</div>}
+                  {u.description && <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{u.description}</div>}
                 </div>
-                <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                   <button className="btn btn-accent btn-sm" onClick={() => publish(u.id)}>✓ Publikovat</button>
                   <button className="btn btn-danger btn-sm" onClick={() => reject(u.id)}>← Vrátit</button>
                 </div>
@@ -119,68 +167,140 @@ export default function ReviewPage() {
             </div>
           ))
         }
+
+        {/* PROJECTS */}
+        {sectionHeader('Projekty ke kontrole')}
+        {projects.length === 0
+          ? <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>Žádné projekty nečekají na review.</div>
+          : projects.map(p => (
+            <div key={p.id} className="review-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedProject(p)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 3 }}>{p.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text2)', marginBottom: 8 }}>
+                    {p.client && <>{p.client} · </>}{p.team && <>{p.team} · </>}autor: {p.author_name}
+                  </div>
+                  {p.description && <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{p.description}</div>}
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                  <button className="btn btn-accent btn-sm" onClick={() => publishProject(p.id)}>✓ Publikovat</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => rejectProject(p.id)}>← Vrátit</button>
+                </div>
+              </div>
+            </div>
+          ))
+        }
       </div>
 
-      {/* DETAIL MODAL */}
-      {selected && (
-        <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setSelected(null)}>
+      {/* USE CASE DETAIL MODAL */}
+      {selectedUseCase && (
+        <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setSelectedUseCase(null)}>
           <div className="modal" style={{ width: 680 }}>
-            <button className="modal-close" onClick={() => setSelected(null)}>×</button>
+            <button className="modal-close" onClick={() => setSelectedUseCase(null)}>×</button>
             <div className="modal-header">
-              <div className="modal-title">{selected.title}</div>
+              <div className="modal-title">{selectedUseCase.title}</div>
               <div className="modal-subtitle">
-                {selected.tool_name && <>{selected.tool_name} · </>}
-                {selected.team && <>{selected.team} · </>}
-                autor: {selected.author_name}
+                {selectedUseCase.tool_name && <>{selectedUseCase.tool_name} · </>}
+                {selectedUseCase.team && <>{selectedUseCase.team} · </>}
+                autor: {selectedUseCase.author_name}
               </div>
             </div>
 
-            {selected.description && (
-              <div style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>{selected.description}</div>
+            {selectedUseCase.description && (
+              <div style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>{selectedUseCase.description}</div>
             )}
 
             <Section title="Základní přehled" />
-            <Field label="Účel nástroje" value={(selected as any).purpose} />
-            <Field label="Podobné nástroje" value={(selected as any).similar_tools} />
-            <Field label="Cena" value={(selected as any).pricing} />
+            <Field label="Účel nástroje" value={(selectedUseCase as any).purpose} />
+            <Field label="Podobné nástroje" value={(selectedUseCase as any).similar_tools} />
+            <Field label="Cena" value={(selectedUseCase as any).pricing} />
 
             <Section title="Přínos pro byznys" />
-            <Field label="Nejlepší pro" value={(selected as any).best_for_roles} />
-            <Field label="Úspora času" value={(selected as any).time_saved} />
-            <Field label="Aha! moment" value={(selected as any).aha_moment} />
+            <Field label="Nejlepší pro" value={(selectedUseCase as any).best_for_roles} />
+            <Field label="Úspora času" value={(selectedUseCase as any).time_saved} />
+            <Field label="Aha! moment" value={(selectedUseCase as any).aha_moment} />
 
             <Section title="Uživatelská přívětivost" />
             <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
-              {(selected as any).onboarding_score && <span className="tag">Onboarding: {(selected as any).onboarding_score}/5</span>}
-              {(selected as any).ui_intuitive && <span className="tag">UI: {(selected as any).ui_intuitive}</span>}
+              {(selectedUseCase as any).onboarding_score && <span className="tag">Onboarding: {(selectedUseCase as any).onboarding_score}/5</span>}
+              {(selectedUseCase as any).ui_intuitive && <span className="tag">UI: {(selectedUseCase as any).ui_intuitive}</span>}
             </div>
 
             <Section title="Výkon AI" />
-            <Field label="Kvalita výstupů" value={(selected as any).output_quality} />
-            {(selected as any).hallucinates && (
+            <Field label="Kvalita výstupů" value={(selectedUseCase as any).output_quality} />
+            {(selectedUseCase as any).hallucinates && (
               <div style={{ marginBottom: 12 }}>
-                <span className="tag">Halucinace: {(selected as any).hallucinates}</span>
+                <span className="tag">Halucinace: {(selectedUseCase as any).hallucinates}</span>
               </div>
             )}
 
             <Section title="Rizika" />
-            <Field label="Slabiny" value={(selected as any).weaknesses} />
-            <Field label="Bezpečnostní rizika" value={(selected as any).security_risks} />
-            <Field label="Limity nástroje" value={(selected as any).limitations} />
+            <Field label="Slabiny" value={(selectedUseCase as any).weaknesses} />
+            <Field label="Bezpečnostní rizika" value={(selectedUseCase as any).security_risks} />
+            <Field label="Limity nástroje" value={(selectedUseCase as any).limitations} />
 
             <Section title="Finální verdikt" />
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-              {(selected as any).recommended && <span className={`tag ${(selected as any).recommended === 'ano' ? 'tag-green' : (selected as any).recommended === 'ne' ? 'tag-red' : 'tag-amber'}`}>Doporučení: {(selected as any).recommended}</span>}
-              {(selected as any).rating && <span className="tag">⭐ {(selected as any).rating}/10</span>}
-              {selected.effort && <span className="tag">Náročnost: {selected.effort}</span>}
-              {selected.impact && <span className="tag">Dopad: {selected.impact}</span>}
+              {(selectedUseCase as any).recommended && <span className={`tag ${(selectedUseCase as any).recommended === 'ano' ? 'tag-green' : (selectedUseCase as any).recommended === 'ne' ? 'tag-red' : 'tag-amber'}`}>Doporučení: {(selectedUseCase as any).recommended}</span>}
+              {(selectedUseCase as any).rating && <span className="tag">⭐ {(selectedUseCase as any).rating}/10</span>}
+              {selectedUseCase.effort && <span className="tag">Náročnost: {selectedUseCase.effort}</span>}
+              {selectedUseCase.impact && <span className="tag">Dopad: {selectedUseCase.impact}</span>}
             </div>
 
             <div className="modal-footer">
-              <button className="btn btn-danger btn-sm" onClick={() => reject(selected.id)}>← Vrátit do draftu</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ Stáhnout</button>
-              <button className="btn btn-ghost" onClick={() => setSelected(null)}>Zavřít</button>
-              <button className="btn btn-accent" onClick={() => publish(selected.id)}>✓ Publikovat</button>
+              <button className="btn btn-danger btn-sm" onClick={() => reject(selectedUseCase.id)}>← Vrátit do draftu</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selectedUseCase)}>⬇ Stáhnout</button>
+              <button className="btn btn-ghost" onClick={() => setSelectedUseCase(null)}>Zavřít</button>
+              <button className="btn btn-accent" onClick={() => publish(selectedUseCase.id)}>✓ Publikovat</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROJECT DETAIL MODAL */}
+      {selectedProject && (
+        <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setSelectedProject(null)}>
+          <div className="modal" style={{ width: 680 }}>
+            <button className="modal-close" onClick={() => setSelectedProject(null)}>×</button>
+            <div className="modal-header">
+              <div className="modal-title">{selectedProject.title}</div>
+              <div className="modal-subtitle">
+                {selectedProject.client && <>{selectedProject.client} · </>}
+                {selectedProject.team && <>{selectedProject.team} · </>}
+                autor: {selectedProject.author_name}
+              </div>
+            </div>
+
+            {selectedProject.description && (
+              <div style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>{selectedProject.description}</div>
+            )}
+
+            <Section title="Základní info" />
+            <Field label="Klient" value={selectedProject.client} />
+            <Field label="Tým" value={selectedProject.team} />
+            <Field label="Cíl projektu" value={selectedProject.project_goal} />
+            <Field label="AI nástroje" value={selectedProject.tools_used} />
+
+            <Section title="Průběh projektu" />
+            <Field label="Co fungovalo" value={selectedProject.what_worked} />
+            <Field label="Výzvy a zklamání" value={selectedProject.what_failed} />
+            <Field label="Osvědčený postup" value={selectedProject.process_that_worked} />
+
+            <Section title="Poučení" />
+            <Field label="Co příště jinak" value={selectedProject.lessons_learned} />
+            <Field label="Čemu se vyvarovat" value={selectedProject.avoid_next_time} />
+            <Field label="Příspěvek AI" value={selectedProject.ai_contribution} />
+
+            <Section title="Hodnocení" />
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+              {selectedProject.overall_rating && <span className="tag">⭐ {selectedProject.overall_rating}/10</span>}
+              {selectedProject.would_repeat && <span className="tag">{selectedProject.would_repeat}</span>}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-danger btn-sm" onClick={() => rejectProject(selectedProject.id)}>← Vrátit do draftu</button>
+              <button className="btn btn-ghost" onClick={() => setSelectedProject(null)}>Zavřít</button>
+              <button className="btn btn-accent" onClick={() => publishProject(selectedProject.id)}>✓ Publikovat</button>
             </div>
           </div>
         </div>
