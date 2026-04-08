@@ -27,7 +27,7 @@ export async function POST() {
       system: 'Vrať POUZE validní JSON array, bez jakéhokoliv textu okolo, bez markdown backticks.',
       messages: [{
         role: 'user',
-        content: 'Navrhni přesně 3 zajímavé AI nástroje pro firemní použití z různých kategorií. Každý musí být jiný typ nástroje. Vrať POUZE validní JSON array se 3 objekty, bez textu okolo: [{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]',
+        content: 'Navrhni přesně 3 zajímavé AI nástroje pro firemní použití.\nPravidla:\n- Každý nástroj musí být od jiného vendora\n- Nesmí to být různé verze stejného nástroje (ne Claude 3.5 i Claude 4)\n- Zaměř se na nástroje pro produktivitu, automatizaci nebo analýzu\n- Vrať POUZE JSON array se 3 objekty\n\n[{"name": "...", "vendor": "...", "website_url": "...", "description": "...", "category": "...", "tags": ["...", "..."]}]',
       }],
     })
 
