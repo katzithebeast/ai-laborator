@@ -19,8 +19,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹', href: '/app/inbox' },
       { id: 'claimboard', label: 'Claim board',    icon: '✎', href: '/app/claimboard' },
-      { id: 'interview',  label: 'Interview',      icon: '⚙', href: '/app/interview' },
-      { id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
+{ id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
     ],
   },
   {

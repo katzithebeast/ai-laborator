@@ -255,7 +255,7 @@ function UseCasesContent() {
             <a href="/app/usecases" className="btn btn-ghost btn-sm">← Vše</a>
           )}
           <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/app/chat'}>+ Nový use case</button>
+          <button className="btn btn-primary" onClick={() => window.location.href = '/app/chat?start=usecase'}>+ Nový use case</button>
         </div>
       </div>
       <div className="page-body">

@@ -34,6 +34,8 @@ function ChatPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const toolParam = searchParams.get('tool')
+  const modeParam = searchParams.get('mode')
+  const startParam = searchParams.get('start')
 
   const [messages, setMessages] = useState<Message[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -58,8 +60,15 @@ function ChatPageInner() {
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
   useEffect(() => { loadSessions() }, [])
   useEffect(() => {
-    if (toolParam) send(`Chci vytvořit use case pro nástroj: ${toolParam}`)
-  }, [toolParam])  // eslint-disable-line react-hooks/exhaustive-deps
+    if (modeParam === 'project') {
+      setMode('project')
+      send('Chci zpětně zdokumentovat projekt kde jsme použili AI.', 'project')
+    } else if (startParam === 'usecase') {
+      send('Chci vytvořit use case pro AI nástroj, který jsme testovali.')
+    } else if (toolParam) {
+      send(`Chci vytvořit use case pro nástroj: ${toolParam}`)
+    }
+  }, [toolParam, modeParam, startParam])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadSessions = async () => {
     const { data } = await supabase

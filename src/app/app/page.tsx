@@ -66,7 +66,6 @@ export default function Dashboard() {
             <p>Popiš projekt nebo problém. AI se doptá a vytvoří kompletní use case draft.</p>
             <div className="wf-card-btns">
               <button className="btn btn-outline btn-sm" onClick={() => router.push('/app/chat')}>Otevřít chat</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => router.push('/app/interview')}>Interview mód</button>
             </div>
           </div>
           <div className="wf-card">

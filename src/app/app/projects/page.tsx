@@ -249,7 +249,7 @@ export default function ProjectsPage() {
         <div><h1>Projekty</h1><p>Zpětná analýza projektů kde byla použita AI.</p></div>
         <div className="page-actions">
           <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
-          <button className="btn btn-primary" onClick={() => router.push('/app/projects/chat')}>+ Nový projekt (chat)</button>
+          <button className="btn btn-primary" onClick={() => router.push('/app/chat?mode=project')}>+ Nový projekt (chat)</button>
         </div>
       </div>
       <div className="page-body">
