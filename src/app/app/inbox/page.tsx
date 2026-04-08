@@ -106,12 +106,10 @@ export default function InboxPage() {
 
       if (!allTools) return
 
-      const normalize = (name: string) =>
-        name.toLowerCase()
-          .trim()
-          .replace(/\s*(ai|pro|plus|alpha|beta|gen-\d+|v\d+|ml|for teams)\s*/gi, '')
-          .replace(/\s+/g, ' ')
-          .trim()
+      const normalize = (n: string) => n.toLowerCase()
+        .replace(/\b(ai|pro|plus|alpha|beta|gen|ml|gen-\d+|v\d+)\b/gi, '')
+        .replace(/[^a-z0-9]/g, '')
+        .trim()
 
       const seen = new Map<string, string>()
       const toDelete: string[] = []
@@ -178,13 +176,11 @@ export default function InboxPage() {
               t.description?.toLowerCase().includes(q.toLowerCase()) ||
               t.tags?.some(tag => tag.toLowerCase().includes(q.toLowerCase()))
             ).map(t => (
-            <div key={t.id} className="tool-card" style={t.is_new && (Date.now() - new Date(t.created_at).getTime() < 48 * 60 * 60 * 1000) ? { borderLeft: '3px solid #22c55e' } : {}}>
+            <div key={t.id} className="tool-card" style={{ borderLeft: t.is_new ? '3px solid #22c55e' : 'none' }}>
               <div style={{ flex:1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div className="tool-name">{t.name}</div>
-                  {t.is_new && (Date.now() - new Date(t.created_at).getTime() < 48 * 60 * 60 * 1000) && (
-                    <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '1px 6px', whiteSpace: 'nowrap' }}>Nové ✨</span>
-                  )}
+                  {t.is_new && <span className="tag tag-green">✨ Nové</span>}
                 </div>
                 <div className="tool-vendor">
                   {t.vendor}{t.website_url && <> · <a href={t.website_url} target="_blank" rel="noopener">otevřít ↗</a></>}
