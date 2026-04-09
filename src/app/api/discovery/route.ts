@@ -11,6 +11,7 @@ const supabase = createClient(
 type DiscoveredTool = {
   name: string
   vendor?: string
+  url?: string
   website_url?: string
   description?: string
   category?: string
@@ -24,38 +25,27 @@ const isDuplicate = (a: string, b: string) => {
   return na === nb || na.includes(nb) || nb.includes(na)
 }
 
-const ALL_CATEGORIES = [
-  'právní dokumenty a smlouvy', 'fakturace a účetnictví', 'HR a nábor',
-  'překlad a lokalizace', 'zákaznická podpora a chatboty', 'SEO a obsah',
-  'analýza dat a reporty', 'plánování a projektové řízení', 'e-mail marketing',
-  'sociální sítě a scheduling', 'prezentace a vizualizace', 'transkripce schůzek',
-  'kybernetická bezpečnost', 'správa znalostní báze', 'code review a testování',
-  'generování obrázků pro e-commerce', 'video editace a titulky', 'správa smluv',
-]
-
-function pickRandom<T>(arr: T[], n: number): T[] {
-  return [...arr].sort(() => Math.random() - 0.5).slice(0, n)
-}
-
 export async function POST() {
   try {
-    const { data: existingTools } = await supabase.from('tools').select('name')
-    const existingNames = existingTools?.map(t => t.name) || []
-    const pickedCategories = pickRandom(ALL_CATEGORIES, 3)
+    const { data: existing } = await supabase.from('tools').select('name')
+    const existingNames = existing?.map(t => t.name.toLowerCase()) || []
 
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: 'Return ONLY a valid JSON array, no markdown, no explanation, no intro text.',
+      system: `You are an AI tool researcher. You MUST return exactly 10 AI tools as JSON array.
+Rules:
+- NEVER suggest tools already in the database (provided in user message)
+- Only tools from 2024-2026
+- Diverse categories: one per category max
+- NO mainstream tools unless they have a brand new feature/product
+- Focus on niche, specialized, emerging tools`,
       messages: [{
         role: 'user',
-        content: `Today is ${new Date().toISOString().split('T')[0]}.
-We already have these tools in our database: ${existingNames.join(', ')}.
-Find 10 NEW AI tools from 2024-2026 that are NOT in the list above.
-Cover diverse categories: ${pickedCategories.join(', ')}, audio, video, code, design, data, productivity, research, etc.
-Return only tools we don't have yet. Each from a different vendor.
+        content: `Already in database: ${existingNames.join(', ')}
 
-Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","description":"...","category":"...","tags":["...","..."]}]`,
+Return JSON array only, no markdown:
+[{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"..."}]`,
       }],
     })
 
@@ -77,7 +67,7 @@ Return ONLY JSON array: [{"name":"...","vendor":"...","website_url":"...","descr
       await supabase.from('tools').insert({
         name: tool.name,
         vendor: tool.vendor ?? null,
-        website_url: tool.website_url ?? null,
+        website_url: tool.url ?? tool.website_url ?? null,
         description: tool.description ?? null,
         category: tool.category ?? null,
         tags: Array.isArray(tool.tags) ? tool.tags : [],
