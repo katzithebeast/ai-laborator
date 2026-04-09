@@ -26,6 +26,7 @@ const isDuplicate = (a: string, b: string) => {
 }
 
 export async function POST() {
+  console.log('DISCOVERY CALLED', new Date().toISOString())
   try {
     // 1. Load existing tools from DB
     const { data: existing } = await supabase.from('tools').select('name')
