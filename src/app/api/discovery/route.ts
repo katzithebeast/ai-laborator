@@ -27,24 +27,51 @@ const isDuplicate = (a: string, b: string) => {
 
 export async function POST() {
   try {
+    // 1. Load existing tools from DB
     const { data: existing } = await supabase.from('tools').select('name')
     const existingNames = existing?.map(t => t.name.toLowerCase()) || []
 
+    // 2. Tavily search for new AI tools
+    const tavilyRes = await fetch('https://api.tavily.com/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: process.env.TAVILY_API_KEY,
+        query: 'new AI tools 2025 product launch startup',
+        search_depth: 'advanced',
+        max_results: 20,
+        include_answer: true,
+      }),
+    })
+
+    if (!tavilyRes.ok) {
+      throw new Error(`Tavily error: ${tavilyRes.status}`)
+    }
+
+    const tavilyData = await tavilyRes.json()
+
+    // 3. Send Tavily results to Claude for structured extraction
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: `You are an AI tool researcher. You MUST return exactly 10 AI tools as JSON array.
-Rules:
-- NEVER suggest tools already in the database (provided in user message)
-- Only tools from 2024-2026
-- Diverse categories: one per category max
-- NO mainstream tools unless they have a brand new feature/product
-- Focus on niche, specialized, emerging tools`,
+      system: `You are an AI tool researcher. Extract structured AI tool information from web search results.
+Return ONLY a valid JSON array, no markdown, no explanation.`,
       messages: [{
         role: 'user',
-        content: `Already in database: ${existingNames.join(', ')}
+        content: `From these web search results, extract up to 10 distinct AI tools that were recently launched or updated.
 
-Return JSON array only, no markdown:
+Search answer: ${tavilyData.answer || ''}
+
+Search results:
+${(tavilyData.results || []).map((r: { title: string; url: string; content: string }) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${r.content}`).join('\n\n')}
+
+Rules:
+- Skip any tool already in this list: ${existingNames.join(', ')}
+- Only include real, specific AI tools (not articles or listicles)
+- Each tool must have a clear name and description
+- Focus on niche, specialized, or newly launched tools
+
+Return ONLY JSON array:
 [{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"..."}]`,
       }],
     })
@@ -56,6 +83,7 @@ Return JSON array only, no markdown:
       return NextResponse.json({ added: 0 })
     }
 
+    // 4. Insert non-duplicate tools
     let added = 0
     for (const tool of discovered) {
       if (!tool.name) continue
