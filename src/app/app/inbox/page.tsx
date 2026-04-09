@@ -61,33 +61,7 @@ export default function InboxPage() {
   const runDiscovery = async () => {
     setDiscovering(true)
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [{
-            role: 'user',
-            content: 'Navrhni 5 nejnovějších a nejzajímavějších AI nástrojů které stojí za vyzkoušení ve firmě. Pro každý vrať JSON: name, vendor, website_url, description, category, tags (array). Vrať POUZE validní JSON array, bez textu okolo.'
-          }],
-          mode: 'chat',
-        })
-      })
-      const { content } = await res.json()
-      const parsed = JSON.parse(content.replace(/```json|```/g, '').trim())
-      if (Array.isArray(parsed)) {
-        await supabase.from('tools').insert(
-          parsed.map((t: { name: string; vendor?: string; website_url?: string; description?: string; category?: string; tags?: string[] }) => ({
-            name: t.name,
-            vendor: t.vendor ?? null,
-            website_url: t.website_url ?? null,
-            description: t.description ?? null,
-            category: t.category ?? null,
-            tags: Array.isArray(t.tags) ? t.tags : [],
-            status: 'new',
-            source: 'discovery',
-          }))
-        )
-      }
+      await fetch('/api/discovery', { method: 'POST' })
     } catch (e) {
       console.error('Discovery failed', e)
     } finally {
