@@ -31,13 +31,23 @@ export async function POST() {
     const { data: existing } = await supabase.from('tools').select('name')
     const existingNames = existing?.map(t => t.name.toLowerCase()) || []
 
-    // 2. Tavily search for new AI tools
+    // 2. Tavily search for new AI tools — randomize query to get variety
+    const queries = [
+      'new AI SaaS tools launched 2025',
+      'AI startup product launch 2025 site:producthunt.com',
+      'best new AI tools for business 2025',
+      'AI tools recently released 2025 site:techcrunch.com OR site:venturebeat.com',
+      'new AI productivity tools 2025 review',
+    ]
+    const query = queries[Math.floor(Math.random() * queries.length)]
+    console.log('Tavily query:', query)
+
     const tavilyRes = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: process.env.TAVILY_API_KEY,
-        query: 'new AI tools 2025 product launch startup',
+        query,
         search_depth: 'advanced',
         max_results: 20,
         include_answer: true,
@@ -45,28 +55,43 @@ export async function POST() {
     })
 
     if (!tavilyRes.ok) {
-      throw new Error(`Tavily error: ${tavilyRes.status}`)
+      const errText = await tavilyRes.text()
+      throw new Error(`Tavily error ${tavilyRes.status}: ${errText}`)
     }
 
     const tavilyData = await tavilyRes.json()
+    console.log('Tavily results count:', tavilyData.results?.length ?? 0)
+    console.log('Tavily answer:', tavilyData.answer?.slice(0, 200))
+
+    if (!tavilyData.results?.length) {
+      return NextResponse.json({ added: 0, error: 'Tavily returned no results' })
+    }
 
     // 3. Send Tavily results to Claude for structured extraction
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: `You are a data extractor. Extract AI tools ONLY from the provided search results.
-Do NOT invent or add any tools not mentioned in the search results text.`,
+      system: `You are a data extractor. Your ONLY job is to extract AI tool names from the text given to you.
+STRICT RULES:
+- Extract ONLY tools explicitly named in the SEARCH RESULTS below
+- Do NOT use your training data to add tools not mentioned in the text
+- Do NOT invent tools, vendors, or URLs
+- Use the URL from the search result that mentioned the tool
+- If you cannot find a tool's vendor in the text, leave vendor as empty string`,
       messages: [{
         role: 'user',
-        content: `Extract AI tools from these search results.
-Return only tools explicitly mentioned in the text below.
-Already in our database (SKIP THESE): ${existingNames.join(', ')}
+        content: `Extract AI tools explicitly named in these search results.
+Skip any tool already in our database.
 
-SEARCH RESULTS:
-${(tavilyData.results || []).map((r: { title: string; url: string; content: string }) => `${r.title}: ${r.content}`).join('\n\n')}
+ALREADY IN DATABASE (skip these): ${existingNames.join(', ')}
 
-Return JSON array only:
-[{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"..."}]`,
+SEARCH RESULTS TO EXTRACT FROM:
+${tavilyData.results.map((r: { title: string; url: string; content: string }) =>
+  `SOURCE: ${r.url}\nTITLE: ${r.title}\nCONTENT: ${r.content}`
+).join('\n---\n')}
+
+Return ONLY a JSON array of tools found in the text above. Use the SOURCE url for each tool.
+Format: [{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"..."}]`,
       }],
     })
 
