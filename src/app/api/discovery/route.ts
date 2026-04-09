@@ -28,6 +28,9 @@ const isDuplicate = (a: string, b: string) => {
 export async function POST() {
   console.log('DISCOVERY CALLED', new Date().toISOString())
   try {
+    console.log('1. Starting discovery')
+    console.log('2. Tavily key exists:', !!process.env.TAVILY_API_KEY)
+
     // 1. Load existing tools from DB
     const { data: existing } = await supabase.from('tools').select('name')
     const existingNames = existing?.map(t => t.name.toLowerCase()) || []
@@ -55,14 +58,15 @@ export async function POST() {
       }),
     })
 
+    console.log('3. Tavily status:', tavilyRes.status)
+
     if (!tavilyRes.ok) {
       const errText = await tavilyRes.text()
       throw new Error(`Tavily error ${tavilyRes.status}: ${errText}`)
     }
 
     const tavilyData = await tavilyRes.json()
-    console.log('Tavily results count:', tavilyData.results?.length ?? 0)
-    console.log('Tavily answer:', tavilyData.answer?.slice(0, 200))
+    console.log('4. Tavily data:', JSON.stringify(tavilyData).slice(0, 500))
 
     if (!tavilyData.results?.length) {
       return NextResponse.json({ added: 0, error: 'Tavily returned no results' })
@@ -96,6 +100,7 @@ Format: [{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"
       }],
     })
 
+    console.log('5. Claude response received')
     const text = response.content[0].type === 'text' ? response.content[0].text : '[]'
     const discovered: DiscoveredTool[] = JSON.parse(text.replace(/```json|```/g, '').trim())
 
@@ -127,8 +132,8 @@ Format: [{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"
     }
 
     return NextResponse.json({ added })
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error'
-    return NextResponse.json({ error: message }, { status: 500 })
+  } catch (error: unknown) {
+    console.error('DISCOVERY ERROR:', error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
