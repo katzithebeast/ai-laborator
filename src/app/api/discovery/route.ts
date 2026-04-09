@@ -54,24 +54,18 @@ export async function POST() {
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
-      system: `You are an AI tool researcher. Extract structured AI tool information from web search results.
-Return ONLY a valid JSON array, no markdown, no explanation.`,
+      system: `You are a data extractor. Extract AI tools ONLY from the provided search results.
+Do NOT invent or add any tools not mentioned in the search results text.`,
       messages: [{
         role: 'user',
-        content: `From these web search results, extract up to 10 distinct AI tools that were recently launched or updated.
+        content: `Extract AI tools from these search results.
+Return only tools explicitly mentioned in the text below.
+Already in our database (SKIP THESE): ${existingNames.join(', ')}
 
-Search answer: ${tavilyData.answer || ''}
+SEARCH RESULTS:
+${(tavilyData.results || []).map((r: { title: string; url: string; content: string }) => `${r.title}: ${r.content}`).join('\n\n')}
 
-Search results:
-${(tavilyData.results || []).map((r: { title: string; url: string; content: string }) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${r.content}`).join('\n\n')}
-
-Rules:
-- Skip any tool already in this list: ${existingNames.join(', ')}
-- Only include real, specific AI tools (not articles or listicles)
-- Each tool must have a clear name and description
-- Focus on niche, specialized, or newly launched tools
-
-Return ONLY JSON array:
+Return JSON array only:
 [{"name":"...","vendor":"...","description":"...","tags":["..."],"url":"..."}]`,
       }],
     })
