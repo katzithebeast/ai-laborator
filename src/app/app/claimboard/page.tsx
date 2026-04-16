@@ -12,18 +12,43 @@ const COLS = [
 export default function ClaimBoard() {
   const router = useRouter()
   const [tools, setTools] = useState<Tool[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.from('tools').select('*')
-      .in('status', ['claimed','in_progress','completed'])
-      .order('claimed_at', { ascending: false })
-      .then(({ data }) => setTools(data ?? []))
+    const fetchTools = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      const isAdmin = profile?.role === 'admin'
+
+      let query = supabase.from('tools').select('*')
+        .in('status', ['claimed', 'in_progress', 'completed'])
+        .order('claimed_at', { ascending: false })
+
+      if (!isAdmin) {
+        query = query.eq('claimed_by', user.id)
+      }
+
+      const { data } = await query
+      setTools(data ?? [])
+      setLoading(false)
+    }
+
+    fetchTools()
   }, [])
 
   const move = async (id: string, status: string) => {
     await supabase.from('tools').update({ status }).eq('id', id)
     setTools(prev => prev.map(t => t.id === id ? { ...t, status: status as Tool['status'] } : t))
   }
+
+  if (loading) return null
 
   return (
     <>
