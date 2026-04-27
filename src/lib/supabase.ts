@@ -60,6 +60,7 @@ export type UseCase = {
   ui_intuitive: string | null
   onboarding_score: number | null
   rating: number | null
+  category: string | null
 }
 
 export type Message = {

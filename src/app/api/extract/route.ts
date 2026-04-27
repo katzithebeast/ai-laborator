@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `Z konverzace extrahuj use case. Vrať POUZE validní JSON, bez markdown backticks:
 {
@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
   "effort": "low|medium|high",
   "impact": "low|medium|high",
   "confidence_score": "číslo 0–100",
+  "category": "jedna z hodnot: images|video|coding|chatbot|text|audio|data|design|productivity|other – vyber JEDNU nejvíce odpovídající, pokud si nejsi jistý zvol 'other'",
   "tags": ["tag1", "tag2"]
 }`,
       messages: [{

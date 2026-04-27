@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `Z konverzace extrahuj zpětnou analýzu projektu. Vrať POUZE validní JSON, bez markdown backticks:
 {

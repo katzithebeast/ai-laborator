@@ -74,7 +74,7 @@ export async function POST() {
 
     // 3. Send Tavily results to Claude for structured extraction
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 2000,
       system: `You are a data extractor. Your ONLY job is to extract AI tool names from the text given to you.
 STRICT RULES:

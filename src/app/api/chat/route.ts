@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     if (mode === 'title') {
       const response = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 50,
         system: 'Vygeneruj krátký název konverzace — max 4 slova, podle nástroje nebo tématu. Vrať POUZE název bez uvozovek.',
         messages,
@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     }
 
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1500,
       system: mode === 'project'
         ? SYSTEM_PROJECT

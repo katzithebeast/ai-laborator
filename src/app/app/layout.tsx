@@ -20,6 +20,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹', href: '/app/inbox' },
       { id: 'claimboard', label: 'Claim board',    icon: '✎', href: '/app/claimboard' },
 { id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
+            { id: 'ranking',    label: 'Žebříček',       icon: '⊟', href: '/app/ranking' },
     ],
   },
   {
