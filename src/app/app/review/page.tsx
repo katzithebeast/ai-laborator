@@ -41,11 +41,14 @@ function Field({ label, value }: { label: string; value?: string | number | null
   )
 }
 
+type DriveToast = { state: 'loading' | 'ok' | 'error'; url?: string }
+
 export default function ReviewPage() {
   const [items, setItems] = useState<UseCase[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [driveToast, setDriveToast] = useState<DriveToast | null>(null)
 
   const load = async () => {
     const [{ data: usecases }, { data: projectsData }] = await Promise.all([
@@ -62,6 +65,27 @@ export default function ReviewPage() {
     await supabase.from('use_cases').update({ status: 'published' }).eq('id', id)
     setSelectedUseCase(null)
     load()
+    // Export PDF na Google Drive (neblokuje publish)
+    setDriveToast({ state: 'loading' })
+    try {
+      const res = await fetch('/api/export-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ useCaseId: id }),
+      })
+      const data = await res.json()
+      if (data.skipped) { setDriveToast(null); return }
+      if (data.success) {
+        setDriveToast({ state: 'ok', url: data.url })
+        setTimeout(() => setDriveToast(null), 5000)
+      } else {
+        setDriveToast({ state: 'error' })
+        setTimeout(() => setDriveToast(null), 4000)
+      }
+    } catch {
+      setDriveToast({ state: 'error' })
+      setTimeout(() => setDriveToast(null), 4000)
+    }
   }
 
   const reject = async (id: string) => {
@@ -260,6 +284,24 @@ export default function ReviewPage() {
               <button className="btn btn-accent" onClick={() => publish(selectedUseCase.id)}>✓ Publikovat</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* GOOGLE DRIVE TOAST */}
+      {driveToast && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 300,
+          background: 'var(--bg2)', border: '1px solid var(--border)',
+          borderRadius: 'var(--r-sm)', padding: '10px 16px',
+          fontSize: 13, fontWeight: 500, color: 'var(--text)',
+          boxShadow: 'var(--shadow-lg)', display: 'flex', alignItems: 'center', gap: 8,
+          animation: 'fadeInUp 0.2s ease',
+        }}>
+          {driveToast.state === 'loading' && <>⏳ Exportuji na Google Drive…</>}
+          {driveToast.state === 'ok' && (
+            <>✅ Uloženo na Google Drive{driveToast.url && <> · <a href={driveToast.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>Otevřít</a></>}</>
+          )}
+          {driveToast.state === 'error' && <>⚠️ Export se nezdařil</>}
         </div>
       )}
 
