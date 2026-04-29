@@ -46,6 +46,7 @@ export default function ReviewPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [webhookStatus, setWebhookStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
 
   const load = async () => {
     const [{ data: usecases }, { data: projectsData }] = await Promise.all([
@@ -62,6 +63,18 @@ export default function ReviewPage() {
     await supabase.from('use_cases').update({ status: 'published' }).eq('id', id)
     setSelectedUseCase(null)
     load()
+    setWebhookStatus('loading')
+    try {
+      const res = await fetch('/api/webhook-publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ useCaseId: id }),
+      })
+      setWebhookStatus(res.ok ? 'success' : 'error')
+    } catch {
+      setWebhookStatus('error')
+    }
+    setTimeout(() => setWebhookStatus('idle'), 4000)
   }
 
   const reject = async (id: string) => {
@@ -143,6 +156,19 @@ export default function ReviewPage() {
           <button className="btn btn-outline" onClick={load}>⟳ Obnovit</button>
         </div>
       </div>
+      {webhookStatus !== 'idle' && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+          padding: '10px 18px', borderRadius: 8, fontSize: 13, fontWeight: 500,
+          background: webhookStatus === 'loading' ? 'var(--bg2)' : webhookStatus === 'success' ? '#166534' : '#7f1d1d',
+          color: webhookStatus === 'loading' ? 'var(--text2)' : '#fff',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+        }}>
+          {webhookStatus === 'loading' && 'Odesílám na Make.com...'}
+          {webhookStatus === 'success' && '✅ Odesláno na Make.com'}
+          {webhookStatus === 'error' && '⚠️ Odeslání selhalo'}
+        </div>
+      )}
       <div className="page-body">
 
         {/* USE CASES */}
