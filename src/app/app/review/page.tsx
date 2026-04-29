@@ -60,7 +60,16 @@ export default function ReviewPage() {
   useEffect(() => { load() }, [])
 
   const publish = async (id: string) => {
-    await supabase.from('use_cases').update({ status: 'published' }).eq('id', id)
+    const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'revision_days').single()
+    const revisionDays = parseInt(setting?.value ?? '90')
+    const now = new Date()
+    const revisionDueAt = new Date(now.getTime() + revisionDays * 24 * 60 * 60 * 1000)
+    await supabase.from('use_cases').update({
+      status: 'published',
+      published_at: now.toISOString(),
+      revision_due_at: revisionDueAt.toISOString(),
+      revision_status: 'ok',
+    }).eq('id', id)
     setSelectedUseCase(null)
     load()
     setWebhookStatus('loading')

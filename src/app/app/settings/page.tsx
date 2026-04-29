@@ -9,6 +9,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [sidebarDefault, setSidebarDefault] = useState(false)
   const [lightMode, setLightMode] = useState(false)
+  const [revisionDays, setRevisionDays] = useState(90)
+  const [revisionSaved, setRevisionSaved] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -16,6 +18,8 @@ export default function SettingsPage() {
       setEmail(user?.email ?? '')
       const { data } = await supabase.from('profiles').select('*').eq('id', user?.id).single()
       if (data) { setFullName(data.full_name ?? ''); setTeam(data.team ?? '') }
+      const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'revision_days').single()
+      if (setting) setRevisionDays(parseInt(setting.value))
     }
     load()
     setSidebarDefault(localStorage.getItem('sidebar_default_open') !== 'false')
@@ -58,6 +62,14 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2000)
   }
 
+  const saveRevisionDays = async () => {
+    const days = Math.max(7, Math.min(365, revisionDays))
+    await supabase.from('app_settings').upsert({ key: 'revision_days', value: String(days), updated_at: new Date().toISOString() })
+    setRevisionDays(days)
+    setRevisionSaved(true)
+    setTimeout(() => setRevisionSaved(false), 2000)
+  }
+
   return (
     <>
       <div className="page-header">
@@ -97,6 +109,25 @@ export default function SettingsPage() {
               </div>
               {toggleSwitch(lightMode, () => toggleLightMode(!lightMode))}
             </div>
+          </div>
+          <div className="card">
+            <h3 style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>Revizní systém</h3>
+            <p style={{ fontSize:12, color:'var(--text3)', marginBottom:14 }}>
+              Každý publikovaný use case dostane datum revize. Po uplynutí intervalu se zobrazí v záložce Revize.
+            </p>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <label className="form-label" style={{ margin:0, whiteSpace:'nowrap' }}>Revize každých</label>
+              <input
+                type="number" className="form-input" min={7} max={365}
+                value={revisionDays}
+                onChange={e => setRevisionDays(Number(e.target.value))}
+                style={{ width: 80 }}
+              />
+              <span style={{ fontSize:13, color:'var(--text2)' }}>dní</span>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={saveRevisionDays}>
+              {revisionSaved ? '✓ Uloženo' : 'Uložit'}
+            </button>
           </div>
           <div className="card">
             <h3 style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>O aplikaci</h3>

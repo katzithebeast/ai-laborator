@@ -33,9 +33,11 @@ function Field({ label, value }: { label: string; value?: string | number | null
 function UseCasesContent() {
   const searchParams = useSearchParams()
   const filterParam = searchParams.get('filter')
+  const tabParam = searchParams.get('tab')
 
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [q, setQ] = useState('')
+  const [activeTab, setActiveTab] = useState<'all' | 'revize'>(tabParam === 'revize' ? 'revize' : 'all')
   const [selected, setSelected] = useState<UseCase | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -49,6 +51,25 @@ function UseCasesContent() {
   }
 
   useEffect(() => { load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const renewRevision = async (id: string) => {
+    const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'revision_days').single()
+    const days = parseInt(setting?.value ?? '90')
+    const due = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+    await supabase.from('use_cases').update({ revision_due_at: due.toISOString(), revision_status: 'ok' }).eq('id', id)
+    load()
+  }
+
+  const archiveUseCase = async (id: string) => {
+    await supabase.from('use_cases').update({ status: 'archived' }).eq('id', id)
+    load()
+  }
+
+  const revisionItems = usecases.filter(u => {
+    if (u.status !== 'published') return false
+    const uc = u as any
+    return uc.revision_status === 'due' || (uc.revision_due_at && new Date(uc.revision_due_at) <= new Date())
+  })
 
   const f = (key: keyof typeof EMPTY_FORM) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(prev => ({ ...prev, [key]: e.target.value }))
@@ -259,6 +280,62 @@ function UseCasesContent() {
         </div>
       </div>
       <div className="page-body">
+        <div className="revision-tabs">
+          <button
+            className={`revision-tab${activeTab === 'all' ? ' active' : ''}`}
+            onClick={() => setActiveTab('all')}
+          >
+            Všechny
+          </button>
+          <button
+            className={`revision-tab${activeTab === 'revize' ? ' active' : ''}`}
+            onClick={() => setActiveTab('revize')}
+          >
+            Revize {revisionItems.length > 0 && <span className="revision-badge">{revisionItems.length}</span>}
+          </button>
+        </div>
+
+        {activeTab === 'revize' ? (
+          <>
+            {revisionItems.length === 0
+              ? <div className="empty"><span className="empty-icon">✅</span>Žádné use casy nečekají na revizi.</div>
+              : revisionItems.map(u => {
+                  const uc = u as any
+                  const dueDate = uc.revision_due_at ? new Date(uc.revision_due_at) : null
+                  const daysOverdue = dueDate ? Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0
+                  return (
+                    <div key={u.id} className="revision-item">
+                      <div style={{ flex: 1 }}>
+                        <div className="revision-title">{u.title}</div>
+                        <div className="revision-meta">
+                          {u.tool_name && <>{u.tool_name} · </>}
+                          {u.team && <>{u.team} · </>}
+                          autor: {u.author_name}
+                        </div>
+                        <div className="revision-dates">
+                          {uc.published_at && (
+                            <span>Publikováno: {new Date(uc.published_at).toLocaleDateString('cs-CZ')}</span>
+                          )}
+                          {dueDate && (
+                            <span className="revision-overdue">
+                              Revize: {dueDate.toLocaleDateString('cs-CZ')}
+                              {daysOverdue > 0 && ` · ${daysOverdue} dní po termínu`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="revision-actions">
+                        <button className="btn btn-accent btn-sm" onClick={() => renewRevision(u.id)}>✅ Stále aktuální</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>✏️ Upravit</button>
+                        <button className="btn btn-ghost btn-sm" onClick={() => archiveUseCase(u.id)}>🗄️ Archivovat</button>
+                      </div>
+                    </div>
+                  )
+                })
+            }
+          </>
+        ) : (
+        <>
         <input className="search-box" placeholder="Hledat use casy…" value={q} onChange={e => setQ(e.target.value)} />
         {filtered.length === 0
           ? <div className="empty"><span className="empty-icon">📋</span>Žádné use casy. Vytvoř první v Chatu.</div>
@@ -290,6 +367,8 @@ function UseCasesContent() {
             </div>
           ))
         }
+        </>
+        )}
       </div>
 
       {/* FORMULÁŘ (nový i editace) */}

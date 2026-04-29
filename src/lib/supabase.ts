@@ -61,6 +61,15 @@ export type UseCase = {
   onboarding_score: number | null
   rating: number | null
   category: string | null
+  published_at: string | null
+  revision_due_at: string | null
+  revision_status: 'ok' | 'due' | null
+}
+
+export type AppSettings = {
+  key: string
+  value: string
+  updated_at: string
 }
 
 export type Message = {

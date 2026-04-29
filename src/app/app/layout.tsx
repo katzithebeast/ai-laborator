@@ -20,6 +20,7 @@ const NAV_SECTIONS: NavSection[] = [
       { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹', href: '/app/inbox' },
       { id: 'claimboard', label: 'Claim board',    icon: '✎', href: '/app/claimboard' },
 { id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
+      { id: 'revision',   label: 'Revize',         icon: '↺', href: '/app/usecases?tab=revize' },
             { id: 'ranking',    label: 'Žebříček',       icon: '⊟', href: '/app/ranking' },
     ],
   },
@@ -45,6 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [revisionDueCount, setRevisionDueCount] = useState(0)
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === 'undefined' || localStorage.getItem('sidebar_default_open') !== 'false'
   )
@@ -63,10 +65,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     localStorage.setItem('theme', next)
   }
 
+  const checkRevisions = async () => {
+    const now = new Date().toISOString()
+    const { data } = await supabase
+      .from('use_cases')
+      .select('id')
+      .eq('status', 'published')
+      .lte('revision_due_at', now)
+    if (data && data.length > 0) {
+      await supabase.from('use_cases').update({ revision_status: 'due' })
+        .eq('status', 'published').lte('revision_due_at', now)
+      setRevisionDueCount(data.length)
+    }
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) router.replace('/login')
-      else { setUser(session.user); setLoading(false) }
+      else { setUser(session.user); setLoading(false); checkRevisions() }
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session) router.replace('/login')
@@ -139,6 +155,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <button key={n.id} className={`nav-link ${activeId === n.id ? 'active' : ''}`}
                 onClick={() => router.push(n.href)}>
                 <span className="nav-icon">{n.icon}</span>{n.label}
+                {n.id === 'revision' && revisionDueCount > 0 && (
+                  <span className="revision-badge">{revisionDueCount}</span>
+                )}
               </button>
             ))}
           </div>

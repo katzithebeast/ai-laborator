@@ -13,7 +13,7 @@ export default function InboxPage() {
   const [form, setForm] = useState({ name:'', vendor:'', website_url:'', description:'', category:'', tags:'' })
 
   const fetchTools = async () => {
-    const { data } = await supabase.from('tools').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase.from('tools').select('*').eq('status', 'new').order('created_at', { ascending: false })
     setTools(data ?? [])
   }
 
