@@ -22,12 +22,28 @@ type Attachment = {
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
 function md(text: string) {
-  return text
+  const lines = text.split('\n')
+  const out: string[] = []
+  let inList = false
+  for (const line of lines) {
+    const isList = line.startsWith('- ')
+    if (isList && !inList) { out.push('<ul style="margin:4px 0;padding-left:20px">'); inList = true }
+    if (!isList && inList) { out.push('</ul>'); inList = false }
+    if (isList) {
+      out.push(`<li>${line.slice(2)}</li>`)
+    } else if (line.startsWith('## ')) {
+      out.push(`<h2 style="font-size:15px;margin:10px 0 4px">${line.slice(3)}</h2>`)
+    } else if (line.startsWith('### ')) {
+      out.push(`<h3 style="font-size:14px;margin:8px 0 4px">${line.slice(4)}</h3>`)
+    } else {
+      out.push(line)
+    }
+  }
+  if (inList) out.push('</ul>')
+  return out.join('\n')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:15px;margin:10px 0 4px">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:14px;margin:8px 0 4px">$1</h3>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>')
+    .replace(/\n\n/g, '<br><br>')
+    .replace(/\n/g, '<br>')
 }
 
 function ChatPageInner() {
@@ -445,7 +461,7 @@ function ChatPageInner() {
               </div>
             </div>
           ) : (
-            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 860, width: '100%', margin: '0 auto' }}>
+            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
                   <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
@@ -510,8 +526,6 @@ function ChatPageInner() {
                   lineHeight: '24px', transition: 'border-color 0.15s',
                   overflowY: 'auto',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(224,32,32,0.5)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'var(--border2)')}
               />
               <button
                 onClick={() => send()}

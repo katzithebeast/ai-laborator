@@ -697,6 +697,7 @@ body {
   background: #e02020;
   color: #fff;
   border-bottom-right-radius: 4px;
+  margin-left: auto;
 }
 
 .msg.assistant .msg-bubble {
@@ -704,6 +705,22 @@ body {
   border: 1px solid var(--border);
   border-bottom-left-radius: 4px;
   color: var(--text);
+}
+
+.msg-bubble ul,
+.msg-bubble ol {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+
+.msg-bubble li {
+  margin-bottom: 3px;
+}
+
+.msg-bubble h2,
+.msg-bubble h3 {
+  margin-top: 10px;
+  margin-bottom: 4px;
 }
 
 .typing-dot {
