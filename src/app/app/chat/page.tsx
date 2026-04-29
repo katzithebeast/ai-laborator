@@ -461,7 +461,7 @@ function ChatPageInner() {
               </div>
             </div>
           ) : (
-            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, width: '100%' }}>
+            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, width: '100%', maxWidth: 900, margin: '0 auto' }}>
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
                   <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>

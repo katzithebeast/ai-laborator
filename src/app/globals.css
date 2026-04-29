@@ -686,6 +686,7 @@ body {
 
 .msg-bubble {
   max-width: 72%;
+  align-self: flex-start;
   padding: 10px 14px;
   border-radius: 14px;
   font-size: 13.5px;
@@ -697,6 +698,7 @@ body {
   background: #e02020;
   color: #fff;
   border-bottom-right-radius: 4px;
+  align-self: flex-end;
   margin-left: auto;
 }
 
