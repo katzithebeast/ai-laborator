@@ -48,6 +48,7 @@ function ChatPageInner() {
   const [toast, setToast] = useState('')
   const [attachment, setAttachment] = useState<Attachment | null>(null)
   const [mode, setMode] = useState<'chat' | 'project'>('chat')
+  const [dbIndicator, setDbIndicator] = useState<Record<number, number>>({})
   const [historyOpen, setHistoryOpen] = useState(false)
   const [titleGenerated, setTitleGenerated] = useState(false)
   const [hoveredHistoryId, setHoveredHistoryId] = useState<string | null>(null)
@@ -177,7 +178,7 @@ function ChatPageInner() {
     }
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch('/api/chat-db', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages, mode: overrideMode ?? mode })
       })
@@ -185,6 +186,9 @@ function ChatPageInner() {
       if (data.error) throw new Error(data.error)
       const withReply: Message[] = [...next, { role: 'assistant', content: data.content }]
       setMessages(withReply)
+      if (data.usedDb && data.dbCount > 0) {
+        setDbIndicator(prev => ({ ...prev, [withReply.length - 1]: data.dbCount }))
+      }
       if (currentSessionId) {
         await supabase.from('chat_sessions')
           .update({ messages: withReply, updated_at: new Date().toISOString() })
@@ -194,7 +198,7 @@ function ChatPageInner() {
       // Vygeneruj název po 4. zprávě (kdy AI zná téma), jen jednou
       if (currentSessionId && withReply.length >= 4 && !titleGenerated) {
         setTitleGenerated(true)
-        fetch('/api/chat', {
+        fetch('/api/chat-db', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: [
@@ -445,7 +449,14 @@ function ChatPageInner() {
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
                   <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
-                  <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0, flex: 1 }}>
+                    <div className="msg-bubble" dangerouslySetInnerHTML={{ __html: m.role === 'assistant' ? md(m.content) : m.content }} />
+                    {m.role === 'assistant' && dbIndicator[i] !== undefined && (
+                      <div style={{ fontSize: 11, color: 'var(--text3)', paddingLeft: 2 }}>
+                        📊 Odpověď vychází z {dbIndicator[i]} otestovaných nástrojů v AI Laboratoři
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
               {loading && (
