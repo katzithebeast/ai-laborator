@@ -57,9 +57,13 @@ function ChatPageInner() {
   const [editingTitle, setEditingTitle] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, loading])
   useEffect(() => { loadSessions() }, [])
+  useEffect(() => {
+    if (!input && textareaRef.current) textareaRef.current.style.height = '48px'
+  }, [input])
   useEffect(() => {
     if (modeParam === 'project') {
       setMode('project')
@@ -238,10 +242,12 @@ function ChatPageInner() {
 
       // 3. Ulož do Supabase
       const table = isProject ? 'projects' : 'use_cases'
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { duration: _duration, ...cleanData } = isProject ? data : { ...data, duration: undefined }
       const { data: inserted, error: insertError } = await supabase
         .from(table)
         .insert({
-          ...data,
+          ...cleanData,
           author_id: user.id,
           author_name: user.email?.split('@')[0] || 'Unknown',
           status: 'draft',
@@ -417,7 +423,7 @@ function ChatPageInner() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                 {[
                   { label: 'Vytvořit use case pro AI nástroj', action: () => send('Chci vytvořit use case pro AI nástroj, který jsme testovali.') },
-                  { label: 'Zdokumentovat projekt s AI', action: () => { setMode('project'); send('Chci zpětně zdokumentovat projekt kde jsme použili AI.', 'project') } },
+                  { label: 'Zpětná vazba na projekt', action: () => { setMode('project'); send('Chci zpětně zdokumentovat projekt kde jsme použili AI.', 'project') } },
                   { label: 'Mám dotaz', action: () => send('Mám dotaz ohledně AI nástrojů nebo use casů.') },
                 ].map(({ label, action }) => (
                   <button key={label} onClick={action} style={{
@@ -435,7 +441,7 @@ function ChatPageInner() {
               </div>
             </div>
           ) : (
-            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 680, width: '100%', margin: '0 auto' }}>
+            <div style={{ paddingTop: 16, paddingBottom: 8, display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 860, width: '100%', margin: '0 auto' }}>
               {messages.map((m, i) => (
                 <div key={i} className={`msg ${m.role}`}>
                   <div className="msg-avatar">{m.role === 'user' ? 'T' : 'λ'}</div>
@@ -455,7 +461,7 @@ function ChatPageInner() {
 
         {/* INPUT AREA */}
         <div style={{ padding: '16px 20px 20px', flexShrink: 0 }}>
-          <div style={{ maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ maxWidth: 860, margin: '0 auto' }}>
             {/* Preview přílohy */}
             {attachment && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, marginBottom: 8 }}>
@@ -472,20 +478,26 @@ function ChatPageInner() {
             {/* Input + send button */}
             <div style={{ position: 'relative' }}>
               <textarea
+                ref={textareaRef}
                 placeholder="Napiš zprávu…"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 disabled={loading}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                onInput={e => {
+                  const t = e.currentTarget
+                  t.style.height = 'auto'
+                  t.style.height = Math.min(t.scrollHeight, 200) + 'px'
+                }}
                 style={{
-                  width: '100%', height: 48, borderRadius: 12,
+                  width: '100%', minHeight: 48, maxHeight: 200, borderRadius: 12,
                   background: 'var(--surface)',
                   border: '1px solid var(--border2)',
                   padding: '12px 50px 12px 16px', color: 'var(--text)',
                   fontSize: 14, fontFamily: 'inherit',
                   resize: 'none', outline: 'none',
                   lineHeight: '24px', transition: 'border-color 0.15s',
-                  overflowY: 'hidden',
+                  overflowY: 'auto',
                 }}
                 onFocus={e => (e.currentTarget.style.borderColor = 'rgba(224,32,32,0.5)')}
                 onBlur={e => (e.currentTarget.style.borderColor = 'var(--border2)')}
