@@ -66,6 +66,24 @@ export type UseCase = {
   revision_status: 'ok' | 'due' | null
 }
 
+export type Profile = {
+  id: string
+  full_name: string | null
+  first_name: string | null
+  last_name: string | null
+  phone: string | null
+  company: string | null
+  position: string | null
+  bio: string | null
+  linkedin_url: string | null
+  avatar_url: string | null
+  role: string | null
+  team: string | null
+  email: string | null
+  profile_completed: boolean
+  created_at: string
+}
+
 export type AppSettings = {
   key: string
   value: string

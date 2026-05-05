@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useRole } from '@/lib/useRole'
+import ProfileSetupModal from '@/components/ProfileSetupModal'
 import type { User } from '@supabase/supabase-js'
 
 type NavItem = { id: string; label: string; icon: string; href: string }
@@ -34,8 +35,8 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'SPRÁVA',
     items: [
-      { id: 'review',   label: 'Kontrola',       icon: '✓', href: '/app/review' },
-      { id: 'settings', label: 'Nastavení',      icon: '◈', href: '/app/settings' },
+      { id: 'review',   label: 'Kontrola',         icon: '✓', href: '/app/review' },
+      { id: 'settings', label: 'Nastavení',        icon: '◈', href: '/app/settings' },
       { id: 'admin',    label: 'Správa uživatelů', icon: '◉', href: '/app/admin' },
     ],
   },
@@ -56,6 +57,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [revisionDueCount, setRevisionDueCount] = useState(0)
+  const [profileCompleted, setProfileCompleted] = useState<boolean | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [firstName, setFirstName] = useState<string | null>(null)
+  const [lastName, setLastName] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === 'undefined' || localStorage.getItem('sidebar_default_open') !== 'false'
   )
@@ -91,9 +96,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) router.replace('/login')
-      else { setUser(session.user); setLoading(false); checkRevisions() }
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!session) { router.replace('/login'); return }
+      setUser(session.user)
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('profile_completed, avatar_url, first_name, last_name')
+        .eq('id', session.user.id)
+        .single()
+
+      setProfileCompleted(profile?.profile_completed ?? false)
+      setAvatarUrl(profile?.avatar_url ?? null)
+      setFirstName(profile?.first_name ?? null)
+      setLastName(profile?.last_name ?? null)
+
+      setLoading(false)
+      checkRevisions()
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session) router.replace('/login')
@@ -102,7 +121,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [router])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Redirect viewer from inaccessible default page
   useEffect(() => {
     if (roleLoading) return
     if (role === 'viewer' && (pathname === '/app' || pathname === '/app/')) {
@@ -137,8 +155,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     whiteSpace: 'nowrap',
   }
 
+  const displayName = firstName
+    ? `${firstName}${lastName ? ' ' + lastName : ''}`
+    : user?.email?.split('@')[0] ?? ''
+
+  const initials = firstName
+    ? `${firstName[0]}${lastName?.[0] ?? ''}`.toUpperCase()
+    : (user?.email?.[0] ?? '?').toUpperCase()
+
   return (
     <div className="app">
+      {/* Profile setup modal – nelze zavřít dokud není profil vyplněn */}
+      {profileCompleted === false && user && (
+        <ProfileSetupModal
+          userId={user.id}
+          onComplete={(url, fn, ln) => {
+            setProfileCompleted(true)
+            setAvatarUrl(url)
+            setFirstName(fn)
+            setLastName(ln)
+          }}
+        />
+      )}
+
       <button
         onClick={() => setSidebarOpen(o => !o)}
         title={sidebarOpen ? 'Skrýt sidebar' : 'Zobrazit sidebar'}
@@ -191,17 +230,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <strong>Tip</strong><br />
           Napiš popis v <strong>Chatu</strong> → AI se doptá → uloží use case. Nebo claimni nástroj z <strong>Inboxu</strong>.
         </div>
-        <div style={{ padding: '10px 6px 0', fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', whiteSpace: 'nowrap' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span>{user?.email?.split('@')[0]}</span>
-            {role && (
-              <span style={{ fontSize: 10, opacity: 0.7 }}>{ROLE_LABELS[role]}</span>
+
+        {/* User info + avatar */}
+        <div style={{ padding: '10px 6px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="avatar"
+                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border)' }}
+              />
+            ) : (
+              <div style={{
+                width: 32, height: 32, borderRadius: '50%', background: '#e02020',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, color: '#fff', fontWeight: 700, flexShrink: 0,
+              }}>
+                {initials}
+              </div>
             )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 11, color: 'var(--text3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
+              </div>
+              {role && (
+                <div style={{ fontSize: 10, color: 'var(--text3)', opacity: 0.7 }}>{ROLE_LABELS[role]}</div>
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <button
               onClick={toggleTheme}
-              title={theme === 'dark' ? 'Přepnout na světlý režim' : 'Přepnout na tmavý režim'}
+              title={theme === 'dark' ? 'Světlý režim' : 'Tmavý režim'}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '2px 4px', borderRadius: 4, color: 'var(--text3)' }}
             >
               {theme === 'dark' ? '☀️' : '🌙'}
