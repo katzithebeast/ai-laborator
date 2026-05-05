@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 type Project = {
   id: string
@@ -52,6 +53,11 @@ function Field({ label, value }: { label: string; value?: string | number | null
 
 export default function ProjectsPage() {
   const router = useRouter()
+  const { canAccess, loading: roleLoading } = useRole()
+  useEffect(() => {
+    if (!roleLoading && !canAccess('projects')) router.push('/app/chat')
+  }, [roleLoading, canAccess, router])
+
   const [projects, setProjects] = useState<Project[]>([])
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<Project | null>(null)

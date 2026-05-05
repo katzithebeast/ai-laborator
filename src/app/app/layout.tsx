@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 import type { User } from '@supabase/supabase-js'
 
 type NavItem = { id: string; label: string; icon: string; href: string }
@@ -19,9 +20,9 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { id: 'inbox',      label: 'Inbox nástrojů', icon: '⊹', href: '/app/inbox' },
       { id: 'claimboard', label: 'Claim board',    icon: '✎', href: '/app/claimboard' },
-{ id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
+      { id: 'usecases',   label: 'Use casy',       icon: '⧉', href: '/app/usecases' },
       { id: 'revision',   label: 'Revize',         icon: '↺', href: '/app/usecases?tab=revize' },
-            { id: 'ranking',    label: 'Žebříček',       icon: '⊟', href: '/app/ranking' },
+      { id: 'ranking',    label: 'Žebříček',       icon: '⊟', href: '/app/ranking' },
     ],
   },
   {
@@ -33,13 +34,21 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'SPRÁVA',
     items: [
-      { id: 'review',   label: 'Kontrola',  icon: '✓', href: '/app/review' },
-      { id: 'settings', label: 'Nastavení', icon: '◈', href: '/app/settings' },
+      { id: 'review',   label: 'Kontrola',       icon: '✓', href: '/app/review' },
+      { id: 'settings', label: 'Nastavení',      icon: '◈', href: '/app/settings' },
+      { id: 'admin',    label: 'Správa uživatelů', icon: '◉', href: '/app/admin' },
     ],
   },
 ]
 
-const NAV = NAV_SECTIONS.flatMap(s => s.items)
+const ROLE_LABELS: Record<string, string> = {
+  super_admin: '👑 Super Admin',
+  admin: '🔧 Admin',
+  analyst: '📝 Analyst',
+  viewer: '👁️ Viewer',
+}
+
+const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items)
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -54,6 +63,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return 'dark'
     return (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark'
   })
+
+  const { role, loading: roleLoading, canAccess } = useRole()
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -89,15 +100,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       else setUser(session.user)
     })
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [router])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return (
+  // Redirect viewer from inaccessible default page
+  useEffect(() => {
+    if (roleLoading) return
+    if (role === 'viewer' && (pathname === '/app' || pathname === '/app/')) {
+      router.replace('/app/ranking')
+    }
+  }, [role, roleLoading, pathname, router])
+
+  if (loading || roleLoading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: '#606060', background: '#0a0a0a' }}>
       Načítám…
     </div>
   )
 
-  const activeId = NAV.find(n => pathname === n.href || (n.href !== '/app' && pathname.startsWith(n.href)))?.id ?? 'dashboard'
+  const filteredSections = NAV_SECTIONS.map(section => ({
+    ...section,
+    items: section.items.filter(n => canAccess(n.id)),
+  })).filter(s => s.items.length > 0)
+
+  const activeId = ALL_NAV_ITEMS.find(n =>
+    pathname === n.href || (n.href !== '/app' && !n.href.includes('?') && pathname.startsWith(n.href))
+  )?.id ?? 'dashboard'
 
   const navHeadingStyle: React.CSSProperties = {
     fontSize: 10,
@@ -113,7 +139,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app">
-      {/* Sidebar toggle button */}
       <button
         onClick={() => setSidebarOpen(o => !o)}
         title={sidebarOpen ? 'Skrýt sidebar' : 'Zobrazit sidebar'}
@@ -148,7 +173,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span>use case systém</span>
           </div>
         </div>
-        {NAV_SECTIONS.map((section, i) => (
+        {filteredSections.map((section, i) => (
           <div key={i}>
             {section.heading && <div style={navHeadingStyle}>{section.heading}</div>}
             {section.items.map(n => (
@@ -167,7 +192,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           Napiš popis v <strong>Chatu</strong> → AI se doptá → uloží use case. Nebo claimni nástroj z <strong>Inboxu</strong>.
         </div>
         <div style={{ padding: '10px 6px 0', fontSize: 11, color: 'var(--text3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', whiteSpace: 'nowrap' }}>
-          <span>{user?.email?.split('@')[0]}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span>{user?.email?.split('@')[0]}</span>
+            {role && (
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{ROLE_LABELS[role]}</span>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <button
               onClick={toggleTheme}

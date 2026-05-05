@@ -2,6 +2,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase, type UseCase } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 const EMPTY_FORM = {
   title: '', tool_name: '', team: '', description: '',
@@ -34,6 +35,9 @@ function UseCasesContent() {
   const searchParams = useSearchParams()
   const filterParam = searchParams.get('filter')
   const tabParam = searchParams.get('tab')
+
+  const { role } = useRole()
+  const isViewer = role === 'viewer'
 
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [q, setQ] = useState('')
@@ -275,8 +279,12 @@ function UseCasesContent() {
           {filterParam === 'published' && (
             <a href="/app/usecases" className="btn btn-ghost btn-sm">← Vše</a>
           )}
-          <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
-          <button className="btn btn-primary" onClick={() => window.location.href = '/app/chat?start=usecase'}>+ Nový use case</button>
+          {!isViewer && (
+            <>
+              <button className="btn btn-outline" onClick={() => { setEditingId(null); setForm(EMPTY_FORM); setShowForm(true) }}>+ Vyplnit ručně</button>
+              <button className="btn btn-primary" onClick={() => window.location.href = '/app/chat?start=usecase'}>+ Nový use case</button>
+            </>
+          )}
         </div>
       </div>
       <div className="page-body">
@@ -360,7 +368,7 @@ function UseCasesContent() {
               </div>
               <div className="uc-actions">
                 <button className="btn btn-outline btn-sm" onClick={() => setSelected(u)}>Detail</button>
-                {u.status === 'draft' && (
+                {!isViewer && u.status === 'draft' && (
                   <button className="btn btn-ghost btn-sm" onClick={() => sendToReview(u.id)}>→ Review</button>
                 )}
               </div>
@@ -602,10 +610,14 @@ function UseCasesContent() {
                 <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
               </div>
-              <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
-              <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
-              {selected.status === 'draft' && (
-                <button className="btn btn-primary btn-sm" onClick={() => sendToReview(selected.id)}>→ Review</button>
+              {!isViewer && (
+                <>
+                  <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
+                  {selected.status === 'draft' && (
+                    <button className="btn btn-primary btn-sm" onClick={() => sendToReview(selected.id)}>→ Review</button>
+                  )}
+                </>
               )}
               <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>Zavřít</button>
             </div>

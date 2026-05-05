@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, type Tool } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 const COLS = [
   { id: 'claimed',     label: 'Claimed',     dot: '#6d28d9', next: 'in_progress', nextLabel: '→ In progress' },
@@ -11,6 +12,11 @@ const COLS = [
 
 export default function ClaimBoard() {
   const router = useRouter()
+  const { canAccess, loading: roleLoading } = useRole()
+  useEffect(() => {
+    if (!roleLoading && !canAccess('claimboard')) router.push('/app/chat')
+  }, [roleLoading, canAccess, router])
+
   const [tools, setTools] = useState<Tool[]>([])
   const [loading, setLoading] = useState(true)
 

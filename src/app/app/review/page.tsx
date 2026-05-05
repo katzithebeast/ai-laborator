@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase, type UseCase } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 type Project = {
   id: string
@@ -42,6 +44,12 @@ function Field({ label, value }: { label: string; value?: string | number | null
 }
 
 export default function ReviewPage() {
+  const router = useRouter()
+  const { canAccess, loading: roleLoading } = useRole()
+  useEffect(() => {
+    if (!roleLoading && !canAccess('review')) router.push('/app/chat')
+  }, [roleLoading, canAccess, router])
+
   const [items, setItems] = useState<UseCase[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [selectedUseCase, setSelectedUseCase] = useState<UseCase | null>(null)

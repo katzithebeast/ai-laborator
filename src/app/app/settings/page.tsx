@@ -1,8 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 export default function SettingsPage() {
+  const router = useRouter()
+  const { canAccess, loading: roleLoading } = useRole()
+  useEffect(() => {
+    if (!roleLoading && !canAccess('settings')) router.push('/app/chat')
+  }, [roleLoading, canAccess, router])
+
   const [email, setEmail] = useState('')
   const [fullName, setFullName] = useState('')
   const [team, setTeam] = useState('')

@@ -1,8 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase, type Tool } from '@/lib/supabase'
+import { useRole } from '@/lib/useRole'
 
 export default function InboxPage() {
+  const router = useRouter()
+  const { canAccess, loading: roleLoading } = useRole()
+  useEffect(() => {
+    if (!roleLoading && !canAccess('inbox')) router.push('/app/chat')
+  }, [roleLoading, canAccess, router])
+
   const [tools, setTools] = useState<Tool[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
