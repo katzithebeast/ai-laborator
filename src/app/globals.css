@@ -1181,6 +1181,22 @@ body {
   display: block;
 }
 
+.login-success {
+  display: none;
+  background: rgba(34,197,94,0.1);
+  color: #16a34a;
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.login-success.show {
+  display: block;
+}
+
 /* ── RANKING ── */
 .ranking-cats {
   display: flex;

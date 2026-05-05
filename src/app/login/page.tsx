@@ -8,11 +8,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [successMsg, setSuccessMsg] = useState('')
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
 
   const handle = async () => {
-    setLoading(true); setError('')
+    setLoading(true); setError(''); setSuccessMsg('')
     try {
       if (mode === 'login') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -21,7 +22,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        setError('Zkontroluj email a potvrď registraci.')
+        setSuccessMsg('✅ Registrace proběhla úspěšně! Zkontroluj svůj email a klikni na potvrzovací odkaz pro dokončení registrace.')
         setMode('login')
       }
     } catch (e: unknown) {
@@ -36,6 +37,7 @@ export default function LoginPage() {
         <h1>AI Laboratoř</h1>
         <p>Firemní systém pro AI use cases</p>
         {error && <div className="login-error show">{error}</div>}
+        {successMsg && <div className="login-success show">{successMsg}</div>}
         <div className="form-group" style={{ textAlign:'left' }}>
           <label className="form-label">Firemní email</label>
           <input className="form-input" type="email" placeholder="jmeno@firma.cz"
