@@ -36,8 +36,11 @@ function UseCasesContent() {
   const filterParam = searchParams.get('filter')
   const tabParam = searchParams.get('tab')
 
-  const { role } = useRole()
+  const { role, canEdit } = useRole()
   const isViewer = role === 'viewer'
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  const canEditItem = (u: UseCase) => canEdit() || (u as any).author_id === currentUserId
 
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [q, setQ] = useState('')
@@ -55,6 +58,9 @@ function UseCasesContent() {
   }
 
   useEffect(() => { load() }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }: any) => setCurrentUserId(user?.id ?? null))
+  }, [])
 
   const renewRevision = async (id: string) => {
     const { data: setting } = await supabase.from('app_settings').select('value').eq('key', 'revision_days').single()
@@ -112,6 +118,8 @@ function UseCasesContent() {
       tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
     }
     if (editingId) {
+      const uc = usecases.find(u => u.id === editingId)
+      if (uc && !canEditItem(uc)) { alert('Nemáš oprávnění upravovat tento use case.'); setSaving(false); return }
       const { error } = await supabase.from('use_cases').update(payload).eq('id', editingId)
       if (error) { console.error(error); alert('Chyba při ukládání: ' + error.message); setSaving(false); return }
       setUsecases(prev => prev.map(u => u.id === editingId ? { ...u, ...payload } as UseCase : u))
@@ -128,6 +136,8 @@ function UseCasesContent() {
   }
 
   const deleteUseCase = async (id: string) => {
+    const uc = usecases.find(u => u.id === id)
+    if (uc && !canEditItem(uc)) { alert('Nemáš oprávnění mazat tento use case.'); return }
     const { error } = await supabase.from('use_cases').delete().eq('id', id)
     if (error) { console.error(error); alert('Chyba při mazání: ' + error.message); return }
     setUsecases(prev => prev.filter(u => u.id !== id))
@@ -334,8 +344,8 @@ function UseCasesContent() {
                       </div>
                       <div className="revision-actions">
                         <button className="btn btn-accent btn-sm" onClick={() => renewRevision(u.id)}>✅ Stále aktuální</button>
-                        <button className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>✏️ Upravit</button>
-                        <button className="btn btn-ghost btn-sm" onClick={() => archiveUseCase(u.id)}>🗄️ Archivovat</button>
+                        {canEditItem(u) && <button className="btn btn-outline btn-sm" onClick={() => openEdit(u)}>✏️ Upravit</button>}
+                        {canEditItem(u) && <button className="btn btn-ghost btn-sm" onClick={() => archiveUseCase(u.id)}>🗄️ Archivovat</button>}
                       </div>
                     </div>
                   )
@@ -610,7 +620,7 @@ function UseCasesContent() {
                 <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
               </div>
-              {!isViewer && (
+              {canEditItem(selected) && (
                 <>
                   <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
                   <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>

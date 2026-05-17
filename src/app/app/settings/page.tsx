@@ -61,6 +61,13 @@ export default function SettingsPage() {
     load()
     setSidebarDefault(localStorage.getItem('sidebar_default_open') !== 'false')
     setLightMode(localStorage.getItem('theme') === 'light')
+
+    // Sync with sidebar theme toggle
+    const handleThemeChange = (e: Event) => {
+      setLightMode((e as CustomEvent<string>).detail === 'light')
+    }
+    window.addEventListener('ai-lab-theme-change', handleThemeChange)
+    return () => window.removeEventListener('ai-lab-theme-change', handleThemeChange)
   }, [])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +93,7 @@ export default function SettingsPage() {
     const theme = val ? 'light' : 'dark'
     localStorage.setItem('theme', theme)
     document.documentElement.setAttribute('data-theme', theme)
+    window.dispatchEvent(new CustomEvent('ai-lab-theme-change', { detail: theme }))
   }
 
   const toggleSwitch = (active: boolean, onToggle: () => void) => (

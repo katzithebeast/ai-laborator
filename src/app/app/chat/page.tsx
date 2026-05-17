@@ -81,6 +81,33 @@ function ChatPageInner() {
   useEffect(() => {
     if (!input && textareaRef.current) textareaRef.current.style.height = '48px'
   }, [input])
+
+  // Bug 2: persist active session across page navigations
+  useEffect(() => {
+    if (sessionId) sessionStorage.setItem('chat_session_id', sessionId)
+  }, [sessionId])
+
+  // Bug 2: restore last session on mount (only when no URL params intent)
+  useEffect(() => {
+    if (toolParam || modeParam || startParam) return
+    const savedId = sessionStorage.getItem('chat_session_id')
+    if (!savedId) return
+    supabase
+      .from('chat_sessions')
+      .select('id, title, messages, created_at, updated_at')
+      .eq('id', savedId)
+      .single()
+      .then(({ data, error }) => {
+        if (data && !error) {
+          setMessages((data as Session).messages ?? [])
+          setSessionId(data.id)
+          setTitleGenerated(true)
+        } else {
+          sessionStorage.removeItem('chat_session_id')
+        }
+      })
+  }, [])  // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (modeParam === 'project') {
       setMode('project')
@@ -92,10 +119,14 @@ function ChatPageInner() {
     }
   }, [toolParam, modeParam, startParam])  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Bug 1: load only current user's sessions
   const loadSessions = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
     const { data } = await supabase
       .from('chat_sessions')
       .select('id, title, created_at, updated_at, messages')
+      .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
     setSessions((data ?? []) as Session[])
   }
@@ -116,6 +147,7 @@ function ChatPageInner() {
     setAttachment(null)
     setMode('chat')
     setTitleGenerated(false)
+    sessionStorage.removeItem('chat_session_id')
   }
 
   const openSession = (s: Session) => {

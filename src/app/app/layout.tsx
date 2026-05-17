@@ -78,10 +78,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const next = (e as CustomEvent<string>).detail as 'dark' | 'light'
+      setTheme(prev => prev === next ? prev : next)
+    }
+    window.addEventListener('ai-lab-theme-change', handleThemeChange)
+    return () => window.removeEventListener('ai-lab-theme-change', handleThemeChange)
+  }, [])
+
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
     localStorage.setItem('theme', next)
+    window.dispatchEvent(new CustomEvent('ai-lab-theme-change', { detail: next }))
   }
 
   const checkRevisions = async () => {
