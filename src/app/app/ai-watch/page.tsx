@@ -81,7 +81,7 @@ export default function AiWatchPage() {
     setRunning(true)
     setError(null)
     try {
-      const res = await fetch('/api/ai-watch/run', { method: 'POST' })
+      const res = await fetch('/api/ai-watch/trigger', { method: 'POST' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'AI News ingest selhal')
       await load()
