@@ -82,30 +82,28 @@ function ChatPageInner() {
     if (!input && textareaRef.current) textareaRef.current.style.height = '48px'
   }, [input])
 
-  // Bug 2: persist active session across page navigations
+  // Persist messages + sessionId to sessionStorage on every change
   useEffect(() => {
-    if (sessionId) sessionStorage.setItem('chat_session_id', sessionId)
-  }, [sessionId])
+    if (sessionId && messages.length > 0) {
+      sessionStorage.setItem('chat_session_id', sessionId)
+      sessionStorage.setItem('chat_messages', JSON.stringify(messages))
+    }
+  }, [sessionId, messages])
 
-  // Bug 2: restore last session on mount (only when no URL params intent)
+  // Restore last session from sessionStorage on mount — no API call needed
   useEffect(() => {
     if (toolParam || modeParam || startParam) return
     const savedId = sessionStorage.getItem('chat_session_id')
-    if (!savedId) return
-    supabase
-      .from('chat_sessions')
-      .select('id, title, messages, created_at, updated_at')
-      .eq('id', savedId)
-      .single()
-      .then(({ data, error }) => {
-        if (data && !error) {
-          setMessages((data as Session).messages ?? [])
-          setSessionId(data.id)
-          setTitleGenerated(true)
-        } else {
-          sessionStorage.removeItem('chat_session_id')
-        }
-      })
+    const savedMessages = sessionStorage.getItem('chat_messages')
+    if (!savedId || !savedMessages) return
+    try {
+      const msgs: Message[] = JSON.parse(savedMessages)
+      if (Array.isArray(msgs) && msgs.length > 0) {
+        setMessages(msgs)
+        setSessionId(savedId)
+        setTitleGenerated(true)
+      }
+    } catch { /* corrupted data — ignore */ }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -148,6 +146,7 @@ function ChatPageInner() {
     setMode('chat')
     setTitleGenerated(false)
     sessionStorage.removeItem('chat_session_id')
+    sessionStorage.removeItem('chat_messages')
   }
 
   const openSession = (s: Session) => {
