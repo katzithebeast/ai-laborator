@@ -254,8 +254,10 @@ export default function InboxPage() {
   const runAiNews = async () => {
     setAiNewsRunning(true)
     try {
-      // Tools-mode: prompt zaměřený na konkrétní tooly/repa/SaaS, ne breaking news.
-      await fetch('/api/ai-watch/run?mode=tools', { method: 'POST' })
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers['x-supabase-token'] = session.access_token
+      await fetch('/api/ai-watch/trigger', { method: 'POST', headers, body: JSON.stringify({ mode: 'tools' }) })
     } catch (e) { console.error(e) }
     finally { setAiNewsRunning(false); fetchTools() }
   }

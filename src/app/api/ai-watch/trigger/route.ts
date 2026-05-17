@@ -34,10 +34,18 @@ export async function POST(request: NextRequest) {
   const secret = process.env.AI_WATCH_CRON_SECRET ?? process.env.CRON_SECRET
   const url = new URL('/api/ai-watch/run', request.url)
 
+  // Forward mode from body if present
+  let body: string | undefined
+  try {
+    const parsed = await request.json()
+    body = JSON.stringify(parsed)
+    if (parsed?.mode) url.searchParams.set('mode', parsed.mode)
+  } catch { /* no body */ }
+
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (secret) headers['Authorization'] = `Bearer ${secret}`
 
-  const res = await fetch(url.toString(), { method: 'POST', headers })
+  const res = await fetch(url.toString(), { method: 'POST', headers, body })
   const json = await res.json()
 
   return NextResponse.json(json, { status: res.status })
