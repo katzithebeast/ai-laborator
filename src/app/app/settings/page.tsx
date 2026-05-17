@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useRole } from '@/lib/useRole'
-import { AVATARS, dicebearUrl } from '@/components/ProfileSetupModal'
+import { AVATARS, getAvatarColor } from '@/components/ProfileSetupModal'
 
 export default function SettingsPage() {
   const router = useRouter()
@@ -21,7 +21,7 @@ export default function SettingsPage() {
   const [position, setPosition] = useState('')
   const [bio, setBio] = useState('')
   const [linkedinUrl, setLinkedinUrl] = useState('')
-  const [selectedSeed, setSelectedSeed] = useState<string | null>(null)
+  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null)
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [linkedinError, setLinkedinError] = useState('')
@@ -47,11 +47,10 @@ export default function SettingsPage() {
         setPosition(data.position ?? '')
         setBio(data.bio ?? '')
         setLinkedinUrl(data.linkedin_url ?? '')
-        // Avatar: detect if it's a dicebear URL or custom
         const av: string | null = data.avatar_url ?? null
         if (av) {
-          const seedMatch = av.match(/seed=([^&]+)/)
-          if (seedMatch) setSelectedSeed(seedMatch[1])
+          const matchedAvatar = AVATARS.find(a => a.emoji === av)
+          if (matchedAvatar) setSelectedEmoji(av)
           else setCustomAvatarUrl(av)
         }
       }
@@ -76,12 +75,12 @@ export default function SettingsPage() {
     const reader = new FileReader()
     reader.onload = () => {
       setCustomAvatarUrl(reader.result as string)
-      setSelectedSeed(null)
+      setSelectedEmoji(null)
     }
     reader.readAsDataURL(file)
   }
 
-  const currentAvatarUrl = customAvatarUrl ?? (selectedSeed ? dicebearUrl(selectedSeed) : null)
+  const currentAvatarUrl = customAvatarUrl ?? selectedEmoji ?? null
 
   const toggleSidebar = (val: boolean) => {
     setSidebarDefault(val)
@@ -173,20 +172,27 @@ export default function SettingsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginBottom: 12 }}>
                 {AVATARS.map(a => (
                   <button
-                    key={a.seed}
-                    onClick={() => setSelectedSeed(a.seed)}
+                    key={a.emoji}
+                    onClick={() => setSelectedEmoji(a.emoji)}
                     title={`${a.emoji} ${a.name}`}
                     style={{
-                      border: `2px solid ${selectedSeed === a.seed ? '#e02020' : 'var(--border)'}`,
+                      border: `2px solid ${selectedEmoji === a.emoji ? '#e02020' : 'var(--border)'}`,
                       borderRadius: 8,
-                      background: selectedSeed === a.seed ? 'rgba(224,32,32,0.08)' : 'transparent',
+                      background: selectedEmoji === a.emoji ? 'rgba(224,32,32,0.08)' : 'transparent',
                       padding: 6, cursor: 'pointer',
                       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                       transition: 'border-color 0.15s, background 0.15s',
                     }}
                   >
-                    <img src={dicebearUrl(a.seed)} alt={a.name} width={40} height={40} style={{ borderRadius: 4 }} />
-                    <span style={{ fontSize: 10, color: 'var(--text3)' }}>{a.emoji}</span>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%',
+                      background: getAvatarColor(a.emoji),
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 22,
+                    }}>
+                      {a.emoji}
+                    </div>
+                    <span style={{ fontSize: 10, color: 'var(--text3)' }}>{a.name}</span>
                   </button>
                 ))}
               </div>
