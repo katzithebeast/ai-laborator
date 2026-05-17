@@ -1603,3 +1603,66 @@ body {
   font-size: 12px;
   font-weight: 700;
 }
+
+/* ===== MOBILE RESPONZIVITA ===== */
+@media (max-width: 768px) {
+  .app { flex-direction: column; }
+  .sidebar { display: none; }
+  .sidebar.mobile-open { display: flex; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200; width: 100% !important; }
+  .main { padding: 8px; margin-left: 0 !important; }
+  .page-header { padding: 12px 0 8px; flex-direction: column; gap: 8px; align-items: flex-start; }
+  .card { padding: 12px; }
+  .modal { width: 100% !important; max-width: 100vw !important; margin: 0; border-radius: 0; min-height: 100dvh; }
+  .modal-bg.open { align-items: flex-end; }
+  .ranking-cats { flex-wrap: wrap; gap: 4px; }
+  .ranking-toolbar { flex-direction: column; align-items: stretch; }
+  .ranking-toolbar .search-box { max-width: 100% !important; }
+  .settings-grid { grid-template-columns: 1fr !important; }
+  .nav-link { min-height: 44px; }
+  .btn { min-height: 36px; }
+  .mobile-hamburger { display: flex !important; }
+  .sidebar-strip { display: none; }
+  table { display: block; overflow-x: auto; }
+}
+@media (max-width: 480px) {
+  .ranking-list { gap: 8px; }
+  .ranking-item { padding: 10px; }
+  .chat-bubble-user, .chat-bubble-assistant { max-width: 90% !important; }
+}
+.mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 199; }
+.mobile-overlay.visible { display: block; }
+.mobile-hamburger {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 201;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text);
+}
+
+/* ===== ZÁLOŽKY (tabs) ===== */
+.tabs-row { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+.tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 14px; font-size: 13px; color: var(--text3); cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; white-space: nowrap; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+.tab-count { display: inline-flex; align-items: center; justify-content: center; background: var(--border); color: var(--text3); font-size: 10px; font-weight: 700; border-radius: 10px; padding: 1px 6px; margin-left: 5px; }
+.tab-btn.active .tab-count { background: rgba(224,32,32,0.15); color: var(--accent); }
+
+/* ===== STATUS BADGES ===== */
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.status-draft { background: var(--border); color: var(--text3); }
+.status-review { background: rgba(251,191,36,0.15); color: #d97706; }
+.status-published { background: rgba(34,197,94,0.15); color: #16a34a; }
+.status-archived { background: var(--border); color: var(--text3); opacity: 0.6; }
+
+/* ===== OUTDATED BADGE ===== */
+.outdated-badge { font-size: 11px; color: #e02020; background: rgba(224,32,32,0.1); border: 1px solid rgba(224,32,32,0.3); border-radius: 4px; padding: 2px 6px; white-space: nowrap; }

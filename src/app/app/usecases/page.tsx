@@ -45,12 +45,14 @@ function UseCasesContent() {
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [q, setQ] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'revize'>(tabParam === 'revize' ? 'revize' : 'all')
+  const [viewTab, setViewTab] = useState<'published' | 'mine' | 'drafts'>('published')
   const [selected, setSelected] = useState<UseCase | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [formErrors, setFormErrors] = useState<string[]>([])
 
   const load = () => {
     supabase.from('use_cases').select('*').order('created_at', { ascending: false })
@@ -102,7 +104,16 @@ function UseCasesContent() {
   }
 
   const saveManual = async () => {
-    if (!form.title.trim()) return
+    const requiredFields = [
+      { key: 'title', label: 'Název use case' },
+      { key: 'tool_name', label: 'Název nástroje' },
+      { key: 'description', label: 'Popis' },
+      { key: 'rating', label: 'Rating' },
+      { key: 'recommended', label: 'Doporučeno' },
+    ]
+    const errors = requiredFields.filter(f => !form[f.key as keyof typeof EMPTY_FORM]?.trim()).map(f => f.label)
+    if (errors.length > 0) { setFormErrors(errors); return }
+    setFormErrors([])
     setSaving(true)
     const payload = {
       title: form.title, tool_name: form.tool_name || null, team: form.team || null,
@@ -263,7 +274,19 @@ function UseCasesContent() {
     URL.revokeObjectURL(url)
   }
 
-  const filtered = usecases.filter(u => {
+  const STATUS_LABELS: Record<string, string> = {
+    draft: 'Rozpracovaný', review: 'Ke kontrole', published: 'Publikovaný',
+    archived: 'Archivovaný', claimed: 'Převzato', in_progress: 'Rozpracováváno',
+    completed: 'Dokončeno', new: 'Nový'
+  }
+
+  const publishedItems = usecases.filter(u => u.status === 'published')
+  const myItems = usecases.filter(u => (u as any).author_id === currentUserId)
+  const draftItems = usecases.filter(u => ['draft', 'review'].includes(u.status ?? '') && (u as any).author_id === currentUserId)
+
+  const viewItems = viewTab === 'published' ? publishedItems : viewTab === 'mine' ? myItems : draftItems
+
+  const filtered = viewItems.filter(u => {
     if (filterParam === 'published' && u.status !== 'published') return false
     const ql = q.toLowerCase()
     return !q || u.title?.toLowerCase().includes(ql) ||
@@ -297,6 +320,18 @@ function UseCasesContent() {
           )}
         </div>
       </div>
+      <div className="tabs-row">
+        <button className={`tab-btn${viewTab === 'published' ? ' active' : ''}`} onClick={() => setViewTab('published')}>
+          Všechny publikované <span className="tab-count">{publishedItems.length}</span>
+        </button>
+        <button className={`tab-btn${viewTab === 'mine' ? ' active' : ''}`} onClick={() => setViewTab('mine')}>
+          Moje <span className="tab-count">{myItems.length}</span>
+        </button>
+        <button className={`tab-btn${viewTab === 'drafts' ? ' active' : ''}`} onClick={() => setViewTab('drafts')}>
+          Rozpracované <span className="tab-count">{draftItems.length}</span>
+        </button>
+      </div>
+
       <div className="page-body">
         <div className="revision-tabs">
           <button
@@ -393,16 +428,16 @@ function UseCasesContent() {
       {showForm && (
         <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal" style={{ width: 620 }}>
-            <button className="modal-close" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>×</button>
+            <button className="modal-close" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setFormErrors([]) }}>×</button>
             <div className="modal-header"><div className="modal-title">{editingId ? 'Upravit use case' : 'Vyplnit use case ručně'}</div></div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label">Název *</label>
+                <label className="form-label">Název use case <span style={{color:'#e02020'}}>*</span></label>
                 <input className="form-input" value={form.title} onChange={f('title')} placeholder="Krátký výstižný název" />
               </div>
               <div className="form-group">
-                <label className="form-label">Nástroj</label>
+                <label className="form-label">Název nástroje <span style={{color:'#e02020'}}>*</span></label>
                 <input className="form-input" value={form.tool_name} onChange={f('tool_name')} placeholder="např. Notion AI" />
               </div>
               <div className="form-group">
@@ -410,7 +445,7 @@ function UseCasesContent() {
                 <input className="form-input" value={form.team} onChange={f('team')} placeholder="např. Marketing" />
               </div>
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                <label className="form-label">Popis (1–2 věty)</label>
+                <label className="form-label">Popis (1–2 věty) <span style={{color:'#e02020'}}>*</span></label>
                 <textarea className="form-textarea" rows={2} value={form.description} onChange={f('description')} placeholder="Stručný popis use case" />
               </div>
             </div>
@@ -507,7 +542,7 @@ function UseCasesContent() {
             <Section title="Finální verdikt" />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
               <div className="form-group">
-                <label className="form-label">Doporučení</label>
+                <label className="form-label">Doporučeno <span style={{color:'#e02020'}}>*</span></label>
                 <select className="form-select" value={form.recommended} onChange={f('recommended')}>
                   <option value="">—</option>
                   <option value="ano">Ano</option>
@@ -516,7 +551,7 @@ function UseCasesContent() {
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Hodnocení (1–10)</label>
+                <label className="form-label">Rating (1–10) <span style={{color:'#e02020'}}>*</span></label>
                 <select className="form-select" value={form.rating} onChange={f('rating')}>
                   <option value="">—</option>
                   {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
@@ -546,9 +581,15 @@ function UseCasesContent() {
               <input className="form-input" value={form.tags} onChange={f('tags')} placeholder="ai, hr, automatizace…" />
             </div>
 
+            {formErrors.length > 0 && (
+              <div style={{ background: 'rgba(224,32,32,0.1)', border: '1px solid rgba(224,32,32,0.3)', borderRadius: 6, padding: '8px 12px', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: '#e02020', fontWeight: 600, marginBottom: 4 }}>Vyplň povinná pole:</div>
+                {formErrors.map(e => <div key={e} style={{ fontSize: 12, color: '#e02020' }}>• {e}</div>)}
+              </div>
+            )}
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM) }}>Zrušit</button>
-              <button className="btn btn-primary" onClick={saveManual} disabled={saving || !form.title.trim()}>
+              <button className="btn btn-ghost" onClick={() => { setShowForm(false); setEditingId(null); setForm(EMPTY_FORM); setFormErrors([]) }}>Zrušit</button>
+              <button className="btn btn-primary" onClick={saveManual} disabled={saving}>
                 {saving ? 'Ukládám…' : editingId ? 'Uložit změny' : 'Uložit jako draft'}
               </button>
             </div>

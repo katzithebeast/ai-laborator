@@ -67,6 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(() =>
     typeof window === 'undefined' || localStorage.getItem('sidebar_default_open') !== 'false'
   )
+  const [mobileOpen, setMobileOpen] = useState(false)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') return 'dark'
     return (localStorage.getItem('theme') as 'dark' | 'light') ?? 'dark'
@@ -224,7 +225,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      <nav className={`sidebar${sidebarOpen ? '' : ' closed'}`}>
+      <button className="mobile-hamburger" onClick={() => setMobileOpen(o => !o)}>☰</button>
+      <div className={`mobile-overlay${mobileOpen ? ' visible' : ''}`} onClick={() => setMobileOpen(false)} />
+
+      <nav className={`sidebar${sidebarOpen ? '' : ' closed'}${mobileOpen ? ' mobile-open' : ''}`}>
         <div className="sidebar-logo" onClick={() => router.push('/app/chat')} style={{ cursor: 'pointer' }}>
           <div className="sidebar-logo-mark">λ</div>
           <div className="sidebar-logo-text">

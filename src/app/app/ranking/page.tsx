@@ -88,7 +88,7 @@ export default function RankingPage() {
   const [usecases, setUsecases] = useState<UseCase[]>([])
   const [loading, setLoading] = useState(true)
   const [category, setCategory] = useState('')
-  const [activeTag, setActiveTag] = useState('')
+  const [activeTags, setActiveTags] = useState<string[]>([])
   const [sortKey, setSortKey] = useState<SortKey>('rating')
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<UseCase | null>(null)
@@ -114,7 +114,7 @@ export default function RankingPage() {
     let items = [...usecases]
 
     if (category) items = items.filter(u => (u as any).category === category)
-    if (activeTag) items = items.filter(u => u.tags?.includes(activeTag))
+    if (activeTags.length > 0) items = items.filter(u => activeTags.every(t => u.tags?.includes(t)))
     if (q) {
       const ql = q.toLowerCase()
       items = items.filter(u =>
@@ -140,7 +140,7 @@ export default function RankingPage() {
     }
 
     return items
-  }, [usecases, category, activeTag, sortKey, q])
+  }, [usecases, category, activeTags, sortKey, q])
 
   return (
     <>
@@ -158,7 +158,7 @@ export default function RankingPage() {
             <button
               key={cat.value}
               className={`ranking-cat-btn${category === cat.value ? ' active' : ''}`}
-              onClick={() => { setCategory(cat.value); setActiveTag('') }}
+              onClick={() => { setCategory(cat.value); setActiveTags([]) }}
             >
               {cat.emoji} {cat.label}
             </button>
@@ -168,14 +168,16 @@ export default function RankingPage() {
         {/* Tagy */}
         {allTags.length > 0 && (
           <div className="ranking-tags-row">
-            {activeTag && (
-              <button className="ranking-tag-chip active" onClick={() => setActiveTag('')}>
-                ✕ {activeTag}
-              </button>
+            {activeTags.length > 0 && (
+              <button className="ranking-tag-chip active" onClick={() => setActiveTags([])}>✕ Zrušit filtry ({activeTags.length})</button>
             )}
-            {allTags.filter(t => t !== activeTag).map(t => (
-              <button key={t} className="ranking-tag-chip" onClick={() => setActiveTag(t)}>
-                {t}
+            {allTags.map(t => (
+              <button
+                key={t}
+                className={`ranking-tag-chip${activeTags.includes(t) ? ' active' : ''}`}
+                onClick={() => setActiveTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+              >
+                {activeTags.includes(t) && '✓ '}{t.toLowerCase()}
               </button>
             ))}
           </div>
@@ -224,7 +226,13 @@ export default function RankingPage() {
                         {u.tool_name && <span className="ranking-tool-name">{u.tool_name}</span>}
                         <span className="ranking-title">{u.title}</span>
                       </div>
-                      <RatingBar value={uc.rating} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        {(() => {
+                          const isOutdated = uc.revision_status === 'due' || (uc.revision_due_at && new Date(uc.revision_due_at) < new Date())
+                          return isOutdated ? <span className="outdated-badge">⚠️ Neaktuální</span> : null
+                        })()}
+                        <RatingBar value={uc.rating} />
+                      </div>
                     </div>
                     {u.description && (
                       <div className="ranking-desc">{u.description}</div>
@@ -237,8 +245,8 @@ export default function RankingPage() {
                       {u.tags?.map(t => (
                         <button
                           key={t}
-                          className={`tag ranking-tag-link${t === activeTag ? ' active' : ''}`}
-                          onClick={e => { e.stopPropagation(); setActiveTag(t === activeTag ? '' : t) }}
+                          className={`tag ranking-tag-link${activeTags.includes(t) ? ' active' : ''}`}
+                          onClick={e => { e.stopPropagation(); setActiveTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]) }}
                         >
                           {t}
                         </button>
