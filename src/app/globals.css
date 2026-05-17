@@ -1570,3 +1570,36 @@ body {
     flex-wrap: wrap;
   }
 }
+
+.sidebar-strip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  opacity: 0.5;
+  cursor: pointer;
+  z-index: 100;
+  transition: opacity 0.2s, width 0.2s;
+}
+.sidebar-strip:hover {
+  opacity: 1;
+  width: 6px;
+}
+.sidebar-strip-arrow {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%);
+  background: var(--accent);
+  color: white;
+  width: 20px;
+  height: 20px;
+  border-radius: 0 4px 4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}

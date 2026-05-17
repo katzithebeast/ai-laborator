@@ -219,27 +219,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ‹
         </button>
       ) : (
-        <div
-          onClick={() => setSidebarOpen(true)}
-          title="Zobrazit sidebar"
-          style={{
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: 16,
-            background: 'var(--border)',
-            cursor: 'pointer',
-            transition: 'background 0.2s',
-            zIndex: 100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#e02020')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--border)')}
-        >
-          <span style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1, userSelect: 'none' }}>›</span>
+        <div className="sidebar-strip" onClick={() => setSidebarOpen(true)} title="Zobrazit sidebar">
+          <div className="sidebar-strip-arrow">›</div>
         </div>
       )}
 
