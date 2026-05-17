@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   "impact": "low|medium|high",
   "confidence_score": "číslo 0–100",
   "category": "jedna z hodnot: images|video|coding|chatbot|text|audio|data|design|productivity|other – vyber JEDNU nejvíce odpovídající, pokud si nejsi jistý zvol 'other'",
-  "tags": ["tag1", "tag2"]
+  "tags": ["tag1", "tag2"] – max 5 tagů, vždy lowercase, odvozuj z kontextu konverzace bez explicitního ptaní. Příklady: "generování obrázků", "video", "kódování", "chatbot", "psaní textu", "marketing", "automatizace", "analýza dat", "design", "prezentace", "výzkum", "překlad", "zákaznická podpora"
 }`,
       messages: [{
         role: 'user',
