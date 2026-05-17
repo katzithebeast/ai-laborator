@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useRole } from '@/lib/useRole'
+import { supabase } from '@/lib/supabase'
 import type { AiWatchItem, AiWatchRun } from '@/lib/ai-watch/types'
 
 type FeedResponse = {
@@ -81,7 +82,10 @@ export default function AiWatchPage() {
     setRunning(true)
     setError(null)
     try {
-      const res = await fetch('/api/ai-watch/trigger', { method: 'POST' })
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers['x-supabase-token'] = session.access_token
+      const res = await fetch('/api/ai-watch/trigger', { method: 'POST', headers })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'AI News ingest selhal')
       await load()
