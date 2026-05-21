@@ -392,33 +392,47 @@ function UseCasesContent() {
         <input className="search-box" placeholder="Hledat use casy…" value={q} onChange={e => setQ(e.target.value)} />
         {filtered.length === 0
           ? <div className="empty"><span className="empty-icon">📋</span>Žádné use casy. Vytvoř první v Chatu.</div>
-          : filtered.map(u => (
-            <div key={u.id} className="uc-card" style={{ cursor: 'pointer' }} onClick={() => setSelected(u)}>
-              <div style={{ flex: 1 }}>
-                <div className="uc-title">{u.title}</div>
-                <div className="uc-meta">
-                  {u.tool_name && <>{u.tool_name} · </>}
-                  {u.team && <>{u.team} · </>}
-                  {u.author_name && <>autor: {u.author_name}</>}
+          : filtered.map(u => {
+              const uc = u as any
+              const rating = uc.rating as number | null
+              const ratingClass = !rating ? '' : rating >= 8 ? 'uc-rating-high' : rating >= 6 ? 'uc-rating-mid' : 'uc-rating-low'
+              const effortBadge = u.effort === 'low' ? 'uc-badge-effort-low' : u.effort === 'medium' ? 'uc-badge-effort-med' : u.effort === 'high' ? 'uc-badge-effort-high' : ''
+              const effortLabel = u.effort === 'low' ? 'Nízká náročnost' : u.effort === 'medium' ? 'Střední náročnost' : u.effort === 'high' ? 'Vysoká náročnost' : ''
+              const recBadge = uc.recommended === 'ano' ? 'uc-badge-yes' : uc.recommended === 'ne' ? 'uc-badge-no' : uc.recommended === 'možná' ? 'uc-badge-maybe' : ''
+              const recLabel = uc.recommended === 'ano' ? '✓ Doporučeno' : uc.recommended === 'ne' ? '✗ Nedoporučeno' : uc.recommended === 'možná' ? '? Možná' : ''
+              return (
+                <div key={u.id} className="uc-card" onClick={() => setSelected(u)}>
+                  <div className="uc-card-top">
+                    {u.status !== 'published' && (
+                      <span className="uc-badge uc-badge-status">{STATUS_LABELS[u.status] ?? u.status}</span>
+                    )}
+                    {uc.category && <span className="uc-badge uc-badge-cat">{uc.category}</span>}
+                    {recBadge && <span className={`uc-badge ${recBadge}`}>{recLabel}</span>}
+                    {effortBadge && <span className={`uc-badge ${effortBadge}`}>{effortLabel}</span>}
+                    {rating && (
+                      <span className={`uc-card-rating ${ratingClass}`}>⭐ {rating}/10</span>
+                    )}
+                  </div>
+                  <div className="uc-card-title">{u.title}</div>
+                  <div className="uc-card-meta">
+                    {u.tool_name && <strong>{u.tool_name}</strong>}
+                    {u.tool_name && (u.author_name || u.created_at) && ' · '}
+                    {u.author_name && <>{u.author_name}</>}
+                    {u.created_at && <> · {new Date(u.created_at).toLocaleDateString('cs-CZ')}</>}
+                  </div>
+                  {u.description && <div className="uc-card-desc">{u.description}</div>}
+                  <div className="uc-card-footer">
+                    <div className="uc-card-tags">
+                      {u.tags?.slice(0, 4).map(t => <span key={t} className="tag">{t}</span>)}
+                    </div>
+                    <button className="btn btn-outline btn-sm" onClick={e => { e.stopPropagation(); setSelected(u) }}>Detail →</button>
+                    {!isViewer && u.status === 'draft' && (
+                      <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); sendToReview(u.id) }}>→ Review</button>
+                    )}
+                  </div>
                 </div>
-                {u.description && <div className="uc-desc">{u.description}</div>}
-                <div className="uc-tags">
-                  <span className={`tag ${statusTag[u.status] || ''}`}>{u.status}</span>
-                  {(u as any).rating && <span className="tag">⭐ {(u as any).rating}/10</span>}
-                  {(u as any).recommended && <span className="tag">{(u as any).recommended === 'ano' ? '✓ doporučeno' : (u as any).recommended === 'ne' ? '✗ nedoporučeno' : '? možná'}</span>}
-                  {u.effort && <span className="tag">effort: {u.effort}</span>}
-                  {u.impact && <span className="tag">impact: {u.impact}</span>}
-                  {u.tags?.map(t => <span key={t} className="tag">{t}</span>)}
-                </div>
-              </div>
-              <div className="uc-actions">
-                <button className="btn btn-outline btn-sm" onClick={() => setSelected(u)}>Detail</button>
-                {!isViewer && u.status === 'draft' && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => sendToReview(u.id)}>→ Review</button>
-                )}
-              </div>
-            </div>
-          ))
+              )
+            })
         }
         </>
         )}
@@ -600,71 +614,205 @@ function UseCasesContent() {
       {/* DETAIL MODAL */}
       {selected && (
         <div className="modal-bg open" onClick={e => e.target === e.currentTarget && setSelected(null)}>
-          <div className="modal modal-detail" style={{ width: 680 }}>
+          <div className="modal modal-detail" style={{ width: 700, maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <button className="modal-close" onClick={() => setSelected(null)}>×</button>
-            <div className="modal-header">
-              <div className="modal-title">{selected.title}</div>
-              <div className="modal-subtitle">
-                {selected.tool_name && <>{selected.tool_name} · </>}
-                {selected.team && <>{selected.team} · </>}
-                autor: {selected.author_name}
-              </div>
+
+            {/* Hlavička */}
+            <div className="uc-modal-header">
+              {(() => {
+                const s = selected as any
+                const rating = s.rating as number | null
+                const ratingClass = !rating ? '' : rating >= 8 ? 'uc-rating-high' : rating >= 6 ? 'uc-rating-mid' : 'uc-rating-low'
+                const recBadge = s.recommended === 'ano' ? 'uc-badge-yes' : s.recommended === 'ne' ? 'uc-badge-no' : s.recommended === 'možná' ? 'uc-badge-maybe' : ''
+                const recLabel = s.recommended === 'ano' ? '✓ Doporučeno' : s.recommended === 'ne' ? '✗ Nedoporučeno' : s.recommended === 'možná' ? '? Možná' : ''
+                const effortBadge = selected.effort === 'low' ? 'uc-badge-effort-low' : selected.effort === 'medium' ? 'uc-badge-effort-med' : selected.effort === 'high' ? 'uc-badge-effort-high' : ''
+                const effortLabel = selected.effort === 'low' ? 'Nízká náročnost' : selected.effort === 'medium' ? 'Střední náročnost' : selected.effort === 'high' ? 'Vysoká náročnost' : ''
+                return (
+                  <>
+                    <div className="uc-modal-badges">
+                      {s.category && <span className={`uc-badge uc-badge-cat`}>{s.category}</span>}
+                      {recBadge && <span className={`uc-badge ${recBadge}`}>{recLabel}</span>}
+                      {effortBadge && <span className={`uc-badge ${effortBadge}`}>{effortLabel}</span>}
+                      {rating && <span className={`uc-modal-rating ${ratingClass}`}>⭐ {rating}/10</span>}
+                    </div>
+                    <div className="uc-modal-title">{selected.title}</div>
+                    <div className="uc-modal-subtitle">
+                      {selected.tool_name && <span>🔧 {selected.tool_name}</span>}
+                      {selected.author_name && <span>👤 {selected.author_name}</span>}
+                      {selected.created_at && <span>📅 {new Date(selected.created_at).toLocaleDateString('cs-CZ')}</span>}
+                    </div>
+                    {selected.description && <div className="uc-modal-desc">{selected.description}</div>}
+                  </>
+                )
+              })()}
             </div>
 
-            <div className="modal-body">
-              {selected.description && (
-                <div style={{ fontSize: 13.5, color: 'var(--text2)', lineHeight: 1.6, marginBottom: 16 }}>{selected.description}</div>
-              )}
+            {/* Scrollovatelný obsah */}
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '0 24px 16px' }}>
+              {(() => {
+                const s = selected as any
+                return (
+                  <>
+                    {/* Metriky */}
+                    <div className="uc-metrics">
+                      <div className="uc-metric">
+                        <div className="uc-metric-label">Náročnost</div>
+                        <div className="uc-metric-value">
+                          {selected.effort === 'low' ? '🟢 Nízká' : selected.effort === 'medium' ? '🟡 Střední' : selected.effort === 'high' ? '🔴 Vysoká' : '—'}
+                        </div>
+                      </div>
+                      <div className="uc-metric">
+                        <div className="uc-metric-label">Dopad</div>
+                        <div className="uc-metric-value">
+                          {selected.impact === 'low' ? '↘ Nízký' : selected.impact === 'medium' ? '→ Střední' : selected.impact === 'high' ? '↗ Vysoký' : '—'}
+                        </div>
+                      </div>
+                      <div className="uc-metric">
+                        <div className="uc-metric-label">Confidence</div>
+                        <div className="uc-metric-value">{selected.confidence_score > 0 ? `${selected.confidence_score} %` : '—'}</div>
+                      </div>
+                    </div>
 
-              <Section title="Základní přehled" />
-              <Field label="Účel nástroje" value={(selected as any).purpose} />
-              <Field label="Podobné nástroje" value={(selected as any).similar_tools} />
-              <Field label="Cena" value={(selected as any).pricing} />
+                    {/* Účel + Pro koho + Podobné + Cena */}
+                    {s.purpose && (
+                      <>
+                        <div className="uc-section">🎯 Účel nástroje</div>
+                        <div className="uc-field">{s.purpose}</div>
+                      </>
+                    )}
+                    {s.best_for_roles && (
+                      <>
+                        <div className="uc-section">👥 Nejlepší pro</div>
+                        <div className="uc-field">{s.best_for_roles}</div>
+                      </>
+                    )}
+                    {(s.similar_tools || s.pricing) && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                        {s.similar_tools && (
+                          <div>
+                            <div className="uc-section" style={{ margin: '0 0 6px' }}>🔄 Podobné nástroje</div>
+                            <div className="uc-field" style={{ marginBottom: 0 }}>{s.similar_tools}</div>
+                          </div>
+                        )}
+                        {s.pricing && (
+                          <div>
+                            <div className="uc-section" style={{ margin: '0 0 6px' }}>💰 Cena</div>
+                            <div className="uc-field" style={{ marginBottom: 0 }}>{s.pricing}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-              <Section title="Přínos pro byznys" />
-              <Field label="Nejlepší pro" value={(selected as any).best_for_roles} />
-              <Field label="Úspora času" value={(selected as any).time_saved} />
-              <Field label="Aha! moment" value={(selected as any).aha_moment} />
+                    {/* Zvýrazněné kartičky: Úspora času + Aha moment */}
+                    {(s.time_saved || s.aha_moment) && (
+                      <div className="uc-highlights">
+                        {s.time_saved && (
+                          <div className="uc-highlight uc-highlight-green">
+                            <div className="uc-highlight-icon">⏱</div>
+                            <div className="uc-highlight-label">Úspora času</div>
+                            <div className="uc-highlight-text">{s.time_saved}</div>
+                          </div>
+                        )}
+                        {s.aha_moment && (
+                          <div className="uc-highlight uc-highlight-blue">
+                            <div className="uc-highlight-icon">✨</div>
+                            <div className="uc-highlight-label">Aha! moment</div>
+                            <div className="uc-highlight-text">{s.aha_moment}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-              <Section title="Uživatelská přívětivost" />
-              <div style={{ display: 'flex', gap: 20, marginBottom: 12 }}>
-                {(selected as any).onboarding_score && <span className="tag">Onboarding: {(selected as any).onboarding_score}/5</span>}
-                {(selected as any).ui_intuitive && <span className="tag">UI: {(selected as any).ui_intuitive}</span>}
-              </div>
+                    {/* Onboarding + UI */}
+                    {(s.onboarding_score || s.ui_intuitive) && (
+                      <>
+                        <div className="uc-section">⭐ Onboarding · UI</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+                          {s.onboarding_score && (
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>Onboarding {s.onboarding_score}/5</div>
+                              <div className="uc-onboarding-dots">
+                                {[1,2,3,4,5].map(i => (
+                                  <div key={i} className={`uc-onboarding-dot ${i <= s.onboarding_score ? 'uc-onboarding-dot-filled' : 'uc-onboarding-dot-empty'}`} />
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {s.ui_intuitive && (
+                            <div>
+                              <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 4 }}>UI intuitivní</div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text2)' }}>{s.ui_intuitive}</div>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
 
-              <Section title="Výkon AI" />
-              <Field label="Kvalita výstupů" value={(selected as any).output_quality} />
-              {(selected as any).hallucinates && (
-                <div style={{ marginBottom: 12 }}>
-                  <span className="tag">Halucinace: {(selected as any).hallucinates}</span>
-                </div>
-              )}
+                    {/* Výkon AI */}
+                    {(s.output_quality || s.hallucinates) && (
+                      <>
+                        <div className="uc-section">🤖 Výkon AI</div>
+                        {s.output_quality && <div className="uc-field">{s.output_quality}</div>}
+                        {s.hallucinates && (
+                          <div style={{ marginBottom: 14 }}>
+                            <span style={{ fontSize: 12, color: 'var(--text3)', marginRight: 8 }}>Halucinace:</span>
+                            <span className={`uc-halluc-badge ${s.hallucinates === 'ne' ? 'uc-halluc-no' : s.hallucinates === 'ano' ? 'uc-halluc-yes' : 'uc-halluc-sometimes'}`}>
+                              {s.hallucinates === 'ne' ? '✓ Nehalucinuje' : s.hallucinates === 'ano' ? '✗ Halucinuje' : '⚠ Občas'}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
 
-              <Section title="Rizika" />
-              <Field label="Slabiny" value={(selected as any).weaknesses} />
-              <Field label="Bezpečnostní rizika" value={(selected as any).security_risks} />
-              <Field label="Limity nástroje" value={(selected as any).limitations} />
+                    {/* Varování kartičky: Slabiny + Bezpečnost */}
+                    {(s.weaknesses || s.security_risks) && (
+                      <div className="uc-highlights">
+                        {s.weaknesses && (
+                          <div className="uc-highlight uc-highlight-yellow">
+                            <div className="uc-highlight-icon">⚠</div>
+                            <div className="uc-highlight-label">Slabiny</div>
+                            <div className="uc-highlight-text">{s.weaknesses}</div>
+                          </div>
+                        )}
+                        {s.security_risks && (
+                          <div className="uc-highlight uc-highlight-red">
+                            <div className="uc-highlight-icon">🔒</div>
+                            <div className="uc-highlight-label">Bezpečnostní rizika</div>
+                            <div className="uc-highlight-text">{s.security_risks}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
-              <Section title="Finální verdikt" />
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-                {(selected as any).recommended && <span className={`tag ${(selected as any).recommended === 'ano' ? 'tag-green' : (selected as any).recommended === 'ne' ? 'tag-red' : 'tag-amber'}`}>Doporučení: {(selected as any).recommended}</span>}
-                {(selected as any).rating && <span className="tag">⭐ {(selected as any).rating}/10</span>}
-                {selected.effort && <span className="tag">Náročnost: {selected.effort}</span>}
-                {selected.impact && <span className="tag">Dopad: {selected.impact}</span>}
-                {selected.confidence_score > 0 && <span className="tag">Confidence: {selected.confidence_score}%</span>}
-              </div>
+                    {/* Limitace */}
+                    {s.limitations && (
+                      <>
+                        <div className="uc-section">🚧 Limitace</div>
+                        <div className="uc-field">{s.limitations}</div>
+                      </>
+                    )}
+
+                    {/* Tagy */}
+                    {selected.tags?.length > 0 && (
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+                        {selected.tags.map(t => <span key={t} className="tag">{t}</span>)}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
 
-            <div className="modal-footer" style={{ flexWrap: 'wrap', gap: 6 }}>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', flex: '1 1 100%' }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
-                <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
-              </div>
+            {/* Sticky patička */}
+            <div className="modal-footer" style={{ flexWrap: 'wrap', gap: 6, padding: '12px 24px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToHTML(selected)}>⬇ HTML</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToPDF(selected)}>⬇ PDF</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => exportToWord(selected)}>⬇ Word</button>
+              <div style={{ flex: 1 }} />
               {canEditItem(selected) && (
                 <>
                   <button className="btn btn-danger btn-sm" onClick={() => setDeleteConfirm(selected.id)}>Smazat</button>
-                  <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>Upravit</button>
+                  <button className="btn btn-outline btn-sm" onClick={() => openEdit(selected)}>✏ Upravit</button>
                   {selected.status === 'draft' && (
                     <button className="btn btn-primary btn-sm" onClick={() => sendToReview(selected.id)}>→ Review</button>
                   )}
