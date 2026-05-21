@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const SYSTEM_USECASE = `Jsi AI asistent v AI Laboratoři. Pomáháš uživatelům zdokumentovat jejich zkušenosti s AI nástroji formou strukturovaného use case.
 
@@ -109,27 +109,28 @@ export async function POST(req: NextRequest) {
     const { messages, mode } = await req.json()
 
     if (mode === 'title') {
-      const response = await client.messages.create({
-        model: 'claude-sonnet-4-6',
+      const response = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
         max_tokens: 50,
-        system: 'Vygeneruj krátký název konverzace — max 4 slova, podle nástroje nebo tématu. Vrať POUZE název bez uvozovek.',
-        messages,
+        messages: [
+          { role: 'system', content: 'Vygeneruj krátký název konverzace — max 4 slova, podle nástroje nebo tématu. Vrať POUZE název bez uvozovek.' },
+          ...messages,
+        ],
       })
-      const text = response.content[0].type === 'text' ? response.content[0].text.trim() : 'Nová konverzace'
+      const text = response.choices[0]?.message?.content?.trim() ?? 'Nová konverzace'
       return NextResponse.json({ content: text })
     }
 
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+    const systemPrompt = mode === 'project' ? SYSTEM_PROJECT : mode === 'interview' ? SYSTEM_INTERVIEW : SYSTEM_USECASE
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 1500,
-      system: mode === 'project'
-        ? SYSTEM_PROJECT
-        : mode === 'interview'
-          ? SYSTEM_INTERVIEW
-          : SYSTEM_USECASE,
-      messages,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...messages,
+      ],
     })
-    const text = response.content[0].type === 'text' ? response.content[0].text : ''
+    const text = response.choices[0]?.message?.content ?? ''
     return NextResponse.json({ content: text })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error'

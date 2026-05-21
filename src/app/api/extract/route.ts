@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json()
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      system: `Z konverzace extrahuj use case. Vrať POUZE validní JSON, bez markdown backticks:
+    const systemPrompt = `Z konverzace extrahuj use case. Vrať POUZE validní JSON, bez markdown backticks:
 {
   "title": "Název nástroje - hlavní use case (např. 'Notion AI - automatizace dokumentace'). Nikdy ne generický název.",
   "tool_name": "Název nástroje nebo null",
@@ -35,16 +32,20 @@ export async function POST(req: NextRequest) {
   "confidence_score": "číslo 0–100",
   "category": "jedna z hodnot: images|video|coding|chatbot|text|audio|data|design|productivity|other – vyber JEDNU nejvíce odpovídající, pokud si nejsi jistý zvol 'other'",
   "tags": ["tag1", "tag2"] – max 5 tagů, vždy lowercase, odvozuj z kontextu konverzace bez explicitního ptaní. Příklady: "generování obrázků", "video", "kódování", "chatbot", "psaní textu", "marketing", "automatizace", "analýza dat", "design", "prezentace", "výzkum", "překlad", "zákaznická podpora"
-}`,
-      messages: [{
-        role: 'user',
-        content: messages
-          .map((m: { role: string; content: string }) =>
-            `${m.role === 'user' ? 'Uživatel' : 'AI'}: ${m.content}`)
-          .join('\n\n')
-      }]
+}`
+    const conversationText = messages
+      .map((m: { role: string; content: string }) =>
+        `${m.role === 'user' ? 'Uživatel' : 'AI'}: ${m.content}`)
+      .join('\n\n')
+    const response = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 2000,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: conversationText },
+      ],
     })
-    const text = response.content[0].type === 'text' ? response.content[0].text : '{}'
+    const text = response.choices[0]?.message?.content ?? '{}'
     const data = JSON.parse(text.replace(/```json|```/g, '').trim())
     return NextResponse.json(data)
   } catch (err) {
