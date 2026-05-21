@@ -248,7 +248,7 @@ function ChatPageInner() {
         body: JSON.stringify({ messages: apiMessages, mode: overrideMode ?? mode })
       })
       const data = await res.json()
-      if (data.error) throw new Error(data.error)
+      if (!res.ok || data.error) throw new Error(data.error ?? `HTTP ${res.status}`)
       const withReply: Message[] = [...next, { role: 'assistant', content: data.content }]
       setMessages(withReply)
       if (data.usedDb && data.dbCount > 0) {
@@ -284,7 +284,8 @@ function ChatPageInner() {
       }
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
-      setMessages([...next, { role: 'assistant', content: '⚠️ Chyba AI. Zkontroluj API klíč na Vercelu.' }])
+      const errMsg = err instanceof Error ? err.message : String(err)
+      setMessages([...next, { role: 'assistant', content: `⚠️ Chyba AI: ${errMsg}` }])
     } finally { setLoading(false) }
   }
 
