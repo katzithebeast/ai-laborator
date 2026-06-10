@@ -2,11 +2,13 @@
 create table if not exists public.feedback (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null,
+  user_email text default null,
   category text not null default 'bug',
   comment text not null default '',
   element_selector text default '',
   element_html text default '',
   screenshot text default null,
+  screenshot_mime text default null,
   url text default '',
   user_agent text default '',
   timestamp timestamptz default now(),
