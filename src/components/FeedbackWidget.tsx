@@ -106,7 +106,7 @@ export function FeedbackWidget() {
         timestamp:        new Date().toISOString(),
       }
       supabase.from('feedback').insert(feedbackData)
-        .then((res) => { if (res.error) console.error('Feedback DB error:', res.error) })
+        .then((res: { error: unknown }) => { if (res.error) console.error('Feedback DB error:', res.error) })
       const wh = process.env.NEXT_PUBLIC_FEEDBACK_WEBHOOK_URL
       if (wh) fetch(wh, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedbackData) })
         .catch(err => console.error('Feedback webhook error:', err))
