@@ -73,32 +73,54 @@ function initWidget() {
         let screenshotBase64: string | null = null
 
         try {
-          // Flash efekt — uživatel vidí že se fotí
-          const flash = document.createElement('div')
-          flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;opacity:0.3;z-index:99998;pointer-events:none;transition:opacity 0.3s'
-          document.body.appendChild(flash)
-
-          // Červený outline na označeném prvku
-          if (targetEl) {
-            targetEl.style.outline = '4px solid #e02020'
-            targetEl.style.outlineOffset = '3px'
-          }
-
-          // Skryj widget panel
           const widgetEl = document.getElementById('wexia-feedback-root')
           if (widgetEl) widgetEl.style.visibility = 'hidden'
 
-          // Počkej 500ms aby outline byl zachycen
-          await new Promise(r => setTimeout(r, 500))
+          // Overlay div s červeným rámečkem (border = html2canvas ho renderuje, outline ne)
+          let overlay: HTMLDivElement | null = null
+          if (targetEl) {
+            const rect = targetEl.getBoundingClientRect()
+            overlay = document.createElement('div')
+            Object.assign(overlay.style, {
+              position: 'fixed',
+              left: `${rect.left - 4}px`,
+              top: `${rect.top - 4}px`,
+              width: `${rect.width + 8}px`,
+              height: `${rect.height + 8}px`,
+              border: '4px solid #e02020',
+              borderRadius: '4px',
+              background: 'rgba(224,32,32,0.07)',
+              zIndex: '2147480000',
+              pointerEvents: 'none',
+              boxSizing: 'border-box',
+            })
+            document.body.appendChild(overlay)
+          }
 
-          // Screenshot
+          // Flash efekt pro UX (odstraní se před screenshotem)
+          const flash = document.createElement('div')
+          Object.assign(flash.style, {
+            position: 'fixed', top: '0', left: '0',
+            width: '100%', height: '100%',
+            background: 'white', opacity: '0.35',
+            zIndex: '2147481000', pointerEvents: 'none',
+          })
+          document.body.appendChild(flash)
+
+          // Flash trvá 200ms, pak zmizí a screenshot jde bez bílého přebarvení
+          await new Promise(r => setTimeout(r, 200))
+          flash.remove()
+
+          // Krátká pauza aby browser překreslil (overlay viditelný, flash pryč)
+          await new Promise(r => setTimeout(r, 100))
+
+          // Screenshot — overlay div s border bude zachycen
           const html2canvas = (await import('html2canvas')).default
           const canvas = await html2canvas(document.body, { scale: 1, useCORS: true, logging: false })
           screenshotBase64 = canvas.toDataURL('image/png').split(',')[1]
 
           // Cleanup
-          flash.remove()
-          if (targetEl) { targetEl.style.outline = ''; targetEl.style.outlineOffset = '' }
+          overlay?.remove()
           if (widgetEl) widgetEl.style.visibility = 'visible'
         } catch (e) {
           console.warn('Screenshot failed:', e)
