@@ -67,34 +67,63 @@ function initWidget() {
 
       try {
         const { data: { user } } = await supabase.auth.getUser()
-        const raw = payload.screenshot as string | null | undefined
-        const screenshotBase64 = raw
-          ? raw.replace(/^data:image\/\w+;base64,/, '')
-          : null
 
-        const feedbackData = {
-          user_id: user?.id,
-          user_email: user?.email,
-          category: payload.category || 'bug',
-          comment: payload.comment || '',
-          element_selector: payload.element?.selector || '',
-          element_html: payload.element?.html || '',
-          screenshot: screenshotBase64,
-          screenshot_mime: raw ? (raw.match(/^data:(image\/\w+);base64,/)?.[1] ?? 'image/png') : null,
-          url: window.location.href,
-          user_agent: navigator.userAgent,
-          timestamp: new Date().toISOString()
+        // Přidej outline na označený prvek před screenshotem
+        const selector = payload.element?.selector as string | undefined
+        let targetEl: HTMLElement | null = null
+        if (selector) {
+          targetEl = document.querySelector(selector)
+          if (targetEl) {
+            targetEl.style.outline = '3px solid #e02020'
+            targetEl.style.outlineOffset = '2px'
+          }
         }
 
-        supabase.from('feedback').insert(feedbackData)
-          .then((res: { error: unknown }) => { if (res.error) console.error('Feedback DB error:', res.error) })
+        // Skryj widget panel aby nebyl ve screenshotu
+        const widgetRoot = document.getElementById('wexia-feedback-root')
+        if (widgetRoot) widgetRoot.style.display = 'none'
+
+        // Screenshot s červeně označeným prvkem
+        let screenshotBase64: string | null = null
+        try {
+          const html2canvas = (await import('html2canvas')).default
+          const canvas = await html2canvas(document.body, { scale: 0.5, useCORS: true, logging: false })
+          screenshotBase64 = canvas.toDataURL('image/png').split(',')[1]
+        } catch (e) {
+          console.warn('Screenshot failed:', e)
+        }
+
+        // Obnov widget a odstraň outline
+        if (widgetRoot) widgetRoot.style.display = ''
+        if (targetEl) {
+          targetEl.style.outline = ''
+          targetEl.style.outlineOffset = ''
+        }
+
+        const feedbackData = {
+          user_id:          user?.id,
+          user_email:       user?.email,
+          category:         payload.category || 'bug',
+          comment:          payload.comment  || '',
+          element_selector: selector         || '',
+          screenshot_base64: screenshotBase64,
+          url:              window.location.href,
+          user_agent:       navigator.userAgent,
+          timestamp:        new Date().toISOString(),
+        }
+
+        fetch('/api/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(feedbackData),
+        }).catch(err => console.error('Feedback API error:', err))
 
         const webhookUrl = process.env.NEXT_PUBLIC_FEEDBACK_WEBHOOK_URL
         if (webhookUrl) {
           fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(feedbackData)
+            body: JSON.stringify(feedbackData),
           }).catch(err => console.error('Feedback webhook error:', err))
         }
       } catch (err) {
