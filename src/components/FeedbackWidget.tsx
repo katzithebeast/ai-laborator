@@ -78,7 +78,9 @@ function initWidget() {
           category: payload.category || 'bug',
           comment: payload.comment || '',
           element_selector: payload.element?.selector || '',
-          element_html: payload.element?.html || '',
+          element_html: payload.element
+            ? document.querySelector(payload.element.selector)?.outerHTML || ''
+            : '',
           screenshot: screenshotBase64,
           screenshot_mime: raw ? (raw.match(/^data:(image\/\w+);base64,/)?.[1] ?? 'image/png') : null,
           url: window.location.href,
