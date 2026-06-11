@@ -68,13 +68,41 @@ function initWidget() {
       try {
         const { data: { user } } = await supabase.auth.getUser()
 
-        // Widget sám pořídí screenshot (s červeným overlay na prvku) před voláním onSubmit
-        // payload.screenshot = data URL string "data:image/png;base64,..."
-        const screenshotBase64 = typeof payload.screenshot === 'string'
-          ? payload.screenshot.split(',')[1]
-          : null
-
         const selector = payload.selectedElement?.selector as string | undefined
+        const targetEl = selector ? document.querySelector<HTMLElement>(selector) : null
+        let screenshotBase64: string | null = null
+
+        try {
+          // Flash efekt — uživatel vidí že se fotí
+          const flash = document.createElement('div')
+          flash.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;opacity:0.3;z-index:99998;pointer-events:none;transition:opacity 0.3s'
+          document.body.appendChild(flash)
+
+          // Červený outline na označeném prvku
+          if (targetEl) {
+            targetEl.style.outline = '4px solid #e02020'
+            targetEl.style.outlineOffset = '3px'
+          }
+
+          // Skryj widget panel
+          const widgetEl = document.getElementById('wexia-feedback-root')
+          if (widgetEl) widgetEl.style.visibility = 'hidden'
+
+          // Počkej 500ms aby outline byl zachycen
+          await new Promise(r => setTimeout(r, 500))
+
+          // Screenshot
+          const html2canvas = (await import('html2canvas')).default
+          const canvas = await html2canvas(document.body, { scale: 1, useCORS: true, logging: false })
+          screenshotBase64 = canvas.toDataURL('image/png').split(',')[1]
+
+          // Cleanup
+          flash.remove()
+          if (targetEl) { targetEl.style.outline = ''; targetEl.style.outlineOffset = '' }
+          if (widgetEl) widgetEl.style.visibility = 'visible'
+        } catch (e) {
+          console.warn('Screenshot failed:', e)
+        }
 
         const feedbackData = {
           user_id:           user?.id,
