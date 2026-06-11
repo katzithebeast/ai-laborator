@@ -30,7 +30,6 @@ export function FeedbackWidget() {
   const [selected, setSelected]   = useState<SelectedEl | null>(null)
   const [category, setCategory]   = useState('bug')
   const [comment, setComment]     = useState('')
-  const [screenshotting, setScreenshotting] = useState(false)
   const hovered = useRef<HTMLElement | null>(null)
 
   // Udržuje červený outline na vybraném prvku
@@ -111,37 +110,60 @@ export function FeedbackWidget() {
     setState('submitting')
 
     let screenshotUrl: string | null = null
+    const widgetEl = document.getElementById('fw-root')
 
     try {
-      // Screenshot: skryjeme panel, uděláme snapshot stránky s označeným prvkem
-      setScreenshotting(true)
-      await new Promise(r => setTimeout(r, 50)) // počkej na překreslení
+      // 1. Ujisti se že označený prvek má červený outline
+      if (selected?.domRef) {
+        selected.domRef.style.outline = '3px solid red'
+        selected.domRef.style.outlineOffset = '2px'
+      }
 
+      // 2. Skryj widget (display:none) aby nebyl na screenshotu
+      if (widgetEl) widgetEl.style.display = 'none'
+      await new Promise(r => setTimeout(r, 60)) // počkej na překreslení
+
+      // 3. Screenshot celé stránky
       try {
         const html2canvas = (await import('html2canvas')).default
         const canvas = await html2canvas(document.body, {
           useCORS: true,
           allowTaint: true,
           logging: false,
-          scale: 1,
+          scale: 0.5,
         })
-        const blob: Blob = await new Promise(resolve =>
-          canvas.toBlob(b => resolve(b!), 'image/png')
-        )
-        const fileName = `feedback-${Date.now()}.png`
-        const { error: uploadError } = await supabase.storage
-          .from('feedback-screenshots')
-          .upload(fileName, blob, { contentType: 'image/png' })
-        if (!uploadError) {
-          const { data } = supabase.storage.from('feedback-screenshots').getPublicUrl(fileName)
-          screenshotUrl = data.publicUrl
+
+        // 4. Obnov widget
+        if (widgetEl) widgetEl.style.display = ''
+
+        // 5. Odstraň outline po screenshotu
+        if (selected?.domRef) {
+          selected.domRef.style.outline = ''
+          selected.domRef.style.outlineOffset = ''
         }
+
+        // 6. Upload do Supabase Storage
+        screenshotUrl = await new Promise<string | null>(resolve => {
+          canvas.toBlob(async (blob) => {
+            if (!blob) { resolve(null); return }
+            const fileName = `feedback_${Date.now()}.png`
+            const { data, error } = await supabase.storage
+              .from('feedback-screenshots')
+              .upload(fileName, blob, { contentType: 'image/png' })
+            if (error || !data) { console.warn('Upload failed:', error); resolve(null); return }
+            const { data: urlData } = supabase.storage
+              .from('feedback-screenshots')
+              .getPublicUrl(data.path)
+            resolve(urlData.publicUrl)
+          }, 'image/png')
+        })
       } catch (screenshotErr) {
         console.warn('Screenshot failed:', screenshotErr)
-      } finally {
-        setScreenshotting(false)
+        if (widgetEl) widgetEl.style.display = ''
+        if (selected?.domRef) { selected.domRef.style.outline = ''; selected.domRef.style.outlineOffset = '' }
       }
 
+      // 7. Ulož do DB
       const { data: { user } } = await supabase.auth.getUser()
       const feedbackData = {
         user_id:          user?.id,
@@ -149,7 +171,6 @@ export function FeedbackWidget() {
         category,
         comment,
         element_selector: selected?.selector || '',
-        element_html:     selected?.html     || '',
         screenshot_url:   screenshotUrl,
         url:              window.location.href,
         user_agent:       navigator.userAgent,
@@ -170,7 +191,7 @@ export function FeedbackWidget() {
       setTimeout(reset, 2500)
     } catch (err) {
       console.error('Feedback error:', err)
-      setScreenshotting(false)
+      if (widgetEl) widgetEl.style.display = ''
       setState('open')
     }
   }, [category, comment, selected, reset])
@@ -237,7 +258,7 @@ export function FeedbackWidget() {
   // ── Form panel ────────────────────────────────────────────────
   const isSubmitting = state === 'submitting'
   return (
-    <div id="fw-root" style={{ visibility: screenshotting ? 'hidden' : 'visible' }}>
+    <div id="fw-root">
       {triggerBtn}
       <div style={{
         position: 'fixed', bottom: 84, right: 24, zIndex: 10000,
@@ -318,13 +339,6 @@ export function FeedbackWidget() {
             }}
           />
 
-          {/* Screenshot info */}
-          {isSubmitting && (
-            <div style={{ fontSize: 12, color: '#888', textAlign: 'center' }}>
-              {screenshotting ? '📸 Pořizuji screenshot...' : 'Odesílám...'}
-            </div>
-          )}
-
           {/* Submit */}
           <button
             onClick={submit}
@@ -338,7 +352,7 @@ export function FeedbackWidget() {
               transition: 'background 0.15s',
             }}
           >
-            {screenshotting ? '📸 Screenshot...' : isSubmitting ? 'Odesílám...' : 'Odeslat'}
+            {isSubmitting ? 'Odesílám...' : 'Odeslat'}
           </button>
         </div>
       </div>
