@@ -4,6 +4,16 @@ import { supabase } from '@/lib/supabase'
 
 const SCRIPT_ID = 'wexia-feedback-script'
 
+// Poslední prvek na který uživatel klikl — fallback když widget.element chybí
+let lastClicked: { selector: string; html: string } | null = null
+
+function buildSelector(el: Element): string {
+  let sel = el.tagName.toLowerCase()
+  if (el.id) sel += `#${el.id}`
+  el.classList.forEach(c => { sel += `.${c}` })
+  return sel
+}
+
 function showToast(message: string) {
   document.getElementById('feedback-toast')?.remove()
   const el = document.createElement('div')
@@ -72,15 +82,19 @@ function initWidget() {
           ? raw.replace(/^data:image\/\w+;base64,/, '')
           : null
 
+        // Priorita: widget.element (uživatel klikl přes pick mode) → lastClicked (poslední klik)
+        const elementSelector = payload.element?.selector || lastClicked?.selector || ''
+        const elementHtml = payload.element
+          ? document.querySelector(payload.element.selector)?.outerHTML || ''
+          : lastClicked?.html || ''
+
         const feedbackData = {
           user_id: user?.id,
           user_email: user?.email,
           category: payload.category || 'bug',
           comment: payload.comment || '',
-          element_selector: payload.element?.selector || '',
-          element_html: payload.element
-            ? document.querySelector(payload.element.selector)?.outerHTML || ''
-            : '',
+          element_selector: elementSelector,
+          element_html: elementHtml,
           screenshot: screenshotBase64,
           screenshot_mime: raw ? (raw.match(/^data:(image\/\w+);base64,/)?.[1] ?? 'image/png') : null,
           url: window.location.href,
@@ -108,20 +122,31 @@ function initWidget() {
 
 export function FeedbackWidget() {
   useEffect(() => {
-    // Zabraní double init (React 18 Strict Mode)
+    // Sleduj poslední kliknutý prvek (mimo widget tlačítko)
+    const onMouseDown = (e: MouseEvent) => {
+      const target = e.target as Element | null
+      if (!target || target.closest('[id^="wexia"]') || target.closest('#feedback-toast')) return
+      lastClicked = {
+        selector: buildSelector(target),
+        html: target.outerHTML.slice(0, 2000), // limit aby se neukládaly obří prvky
+      }
+    }
+    document.addEventListener('mousedown', onMouseDown)
+
+    // Zabrání double init (React 18 Strict Mode)
     if (document.getElementById(SCRIPT_ID)) {
       initWidget()
-      return
+    } else {
+      const script = document.createElement('script')
+      script.id = SCRIPT_ID
+      script.src = '/feedback-widget.min.js'
+      script.async = true
+      script.onload = initWidget
+      document.body.appendChild(script)
     }
 
-    const script = document.createElement('script')
-    script.id = SCRIPT_ID
-    script.src = '/feedback-widget.min.js'
-    script.async = true
-    script.onload = initWidget
-    document.body.appendChild(script)
-
     return () => {
+      document.removeEventListener('mousedown', onMouseDown)
       window.WexiaFeedback?.destroy?.()
     }
   }, [])
