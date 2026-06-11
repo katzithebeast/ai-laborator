@@ -87,7 +87,7 @@ function initWidget() {
         let screenshotBase64: string | null = null
         try {
           const html2canvas = (await import('html2canvas')).default
-          const canvas = await html2canvas(document.body, { scale: 0.5, useCORS: true, logging: false })
+          const canvas = await html2canvas(document.body, { scale: 1, useCORS: true, logging: false })
           screenshotBase64 = canvas.toDataURL('image/png').split(',')[1]
         } catch (e) {
           console.warn('Screenshot failed:', e)
