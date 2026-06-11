@@ -87,7 +87,7 @@ function initWidget() {
         }
 
         supabase.from('feedback').insert(feedbackData)
-          .then((res) => { if (res.error) console.error('Feedback DB error:', res.error) })
+          .then((res: { error: unknown }) => { if (res.error) console.error('Feedback DB error:', res.error) })
 
         const webhookUrl = process.env.NEXT_PUBLIC_FEEDBACK_WEBHOOK_URL
         if (webhookUrl) {
