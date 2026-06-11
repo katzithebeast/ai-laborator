@@ -208,16 +208,28 @@ export function FeedbackWidget() {
       title="Nahlásit chybu"
       style={{
         position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
-        width: 48, height: 48, borderRadius: '50%',
-        background: '#e02020', border: 'none', cursor: 'pointer',
-        fontSize: 22, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-        transition: 'transform 0.15s',
+        width: 44, height: 44, borderRadius: '50%',
+        background: '#1a1a1a', border: '1px solid #2a2a2a', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#888', transition: 'border-color 0.15s, color 0.15s',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
       }}
-      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
-      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#e02020'; e.currentTarget.style.color = '#e02020' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.color = '#888' }}
     >
-      🐛
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 2l1.5 1.5"/>
+        <path d="M14.5 3.5L16 2"/>
+        <path d="M9 7.5C9 6 10 5 12 5s3 1 3 2.5"/>
+        <path d="M12 19c-4 0-6-2.5-6-7 0-1.5.5-3 1.5-4"/>
+        <path d="M12 19c4 0 6-2.5 6-7 0-1.5-.5-3-1.5-4"/>
+        <path d="M6 9H3"/>
+        <path d="M21 9h-3"/>
+        <path d="M6 14H2"/>
+        <path d="M22 14h-4"/>
+        <path d="M12 19v3"/>
+      </svg>
     </button>
   )
 
